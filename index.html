@@ -1,0 +1,1329 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LogicNova — Clickable Prototype</title>
+<style>
+  :root {
+    --bg: #F3F4FA; --surface: #FFFFFF; --ink: #14161F; --ink-soft: #5B5F73; --ink-faint: #9296A8;
+    --line: #E6E8F0; --accent: #4F46E5; --accent-ink: #FFFFFF; --accent-soft: #EEEEFE; --accent-dark: #4338CA;
+    --success: #16A34A; --success-bg: #E9F9EE; --danger: #E11D48; --danger-bg: #FDEBEE;
+    --warn: #B45309; --warn-bg: #FDF3E4; --shadow: 0 1px 2px rgba(20,22,31,.05), 0 10px 30px rgba(20,22,31,.07);
+    --radius: 14px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0C0D14; --surface: #161822; --ink: #EEF0F8; --ink-soft: #A3A7BE; --ink-faint: #6C7087;
+      --line: #272A3A; --accent: #8B85FF; --accent-ink: #14161F; --accent-soft: #211F3D; --accent-dark: #A39CFF;
+      --success: #4ADE80; --success-bg: #10281A; --danger: #FB7185; --danger-bg: #2B1420;
+      --warn: #FBBF6B; --warn-bg: #2B1D0C; --shadow: 0 1px 2px rgba(0,0,0,.4), 0 10px 30px rgba(0,0,0,.45);
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0C0D14; --surface: #161822; --ink: #EEF0F8; --ink-soft: #A3A7BE; --ink-faint: #6C7087;
+    --line: #272A3A; --accent: #8B85FF; --accent-ink: #14161F; --accent-soft: #211F3D; --accent-dark: #A39CFF;
+    --success: #4ADE80; --success-bg: #10281A; --danger: #FB7185; --danger-bg: #2B1420;
+    --warn: #FBBF6B; --warn-bg: #2B1D0C; --shadow: 0 1px 2px rgba(0,0,0,.4), 0 10px 30px rgba(0,0,0,.45);
+  }
+  :root[data-theme="light"] {
+    --bg: #F3F4FA; --surface: #FFFFFF; --ink: #14161F; --ink-soft: #5B5F73; --ink-faint: #9296A8;
+    --line: #E6E8F0; --accent: #4F46E5; --accent-ink: #FFFFFF; --accent-soft: #EEEEFE; --accent-dark: #4338CA;
+    --success: #16A34A; --success-bg: #E9F9EE; --danger: #E11D48; --danger-bg: #FDEBEE;
+    --warn: #B45309; --warn-bg: #FDF3E4; --shadow: 0 1px 2px rgba(20,22,31,.05), 0 10px 30px rgba(20,22,31,.07);
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; height: 100%; }
+  body {
+    background: var(--bg); color: var(--ink);
+    font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    font-size: 14.5px; line-height: 1.5; -webkit-font-smoothing: antialiased; overflow-x: hidden;
+  }
+  button, input, select, textarea { font-family: inherit; font-size: inherit; }
+  button { cursor: pointer; }
+  a { color: var(--accent-dark); }
+  ::selection { background: var(--accent-soft); }
+
+  .proto-ribbon {
+    background: var(--ink); color: var(--bg); text-align: center; font-size: 12px; letter-spacing: .02em;
+    padding: 6px 12px; position: sticky; top: 0; z-index: 200;
+  }
+  .proto-ribbon strong { color: var(--accent); }
+  @media (prefers-color-scheme: dark) { .proto-ribbon { background: #05060A; } }
+  :root[data-theme="dark"] .proto-ribbon { background: #05060A; }
+  :root[data-theme="light"] .proto-ribbon { background: var(--ink); color: var(--bg); }
+
+  #app { min-height: 100vh; display: flex; flex-direction: column; }
+
+  /* ---------- Public topbar + home ---------- */
+  .pub-topbar {
+    display: flex; align-items: center; justify-content: space-between; padding: 14px 28px;
+    background: var(--surface); border-bottom: 1px solid var(--line); position: sticky; top: 27px; z-index: 100;
+  }
+  .pub-topbar .links { display: flex; gap: 18px; align-items: center; }
+  .pub-topbar .links button { background: none; border: none; color: var(--ink-soft); font-weight: 600; font-size: 13.5px; }
+  .pub-topbar .links button.solid { background: var(--ink); color: var(--bg); padding: 8px 16px; border-radius: 9px; }
+  .home-hero {
+    margin: 28px; border-radius: 24px; padding: 70px 40px; text-align: center; color: white;
+    background: radial-gradient(circle at 20% 20%, #6D28D9, transparent 55%), linear-gradient(160deg, #4338CA, #1E1B4B 80%);
+  }
+  .home-hero .eyebrow { letter-spacing: .12em; font-size: 11.5px; font-weight: 700; opacity: .75; text-transform: uppercase; }
+  .home-hero h1 { font-size: 38px; margin: 10px 0 14px; max-width: 640px; margin-left: auto; margin-right: auto; }
+  .home-hero p { max-width: 520px; margin: 0 auto 26px; opacity: .85; font-size: 14.5px; }
+  .home-hero .cta { display: flex; gap: 12px; justify-content: center; }
+  .home-hero .btn-primary { width: auto; padding: 12px 22px; }
+  .home-hero .btn-outline { background: transparent; border: 1px solid rgba(255,255,255,.5); color: white; padding: 12px 22px; border-radius: 10px; font-weight: 600; }
+  .home-features { display: grid; grid-template-columns: repeat(3,1fr); gap: 24px; max-width: 900px; margin: 10px auto 60px; padding: 0 28px; text-align: center; }
+  @media (max-width: 700px) { .home-features { grid-template-columns: 1fr; } }
+  .home-features .ic { width: 46px; height: 46px; border-radius: 12px; background: var(--accent-soft); color: var(--accent-dark); display: flex; align-items: center; justify-content: center; margin: 0 auto 12px; font-size: 19px; }
+  .home-features h4 { margin: 0 0 6px; font-size: 14.5px; }
+  .home-features p { margin: 0; font-size: 12.5px; color: var(--ink-soft); }
+
+  /* ---------- Login / Register / Forgot ---------- */
+  .login-wrap {
+    flex: 1; display: flex; align-items: center; justify-content: center; padding: 40px 20px;
+    background: radial-gradient(circle at 15% 15%, color-mix(in srgb, var(--accent) 14%, transparent), transparent 45%), var(--bg);
+  }
+  .login-card { width: 100%; max-width: 400px; background: var(--surface); border: 1px solid var(--line); border-radius: 20px; box-shadow: var(--shadow); padding: 34px 32px; }
+  .login-brand { display: flex; align-items: center; gap: 10px; margin-bottom: 24px; }
+  .brand-mark { width: 34px; height: 34px; border-radius: 9px; background: linear-gradient(135deg, var(--accent), var(--accent-dark)); color: white; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 16px; flex-shrink: 0; }
+  .brand-name { font-weight: 700; font-size: 17px; }
+  .login-card h1 { font-size: 21px; margin: 0 0 4px; }
+  .login-card .sub { color: var(--ink-soft); font-size: 13px; margin: 0 0 20px; }
+  .role-toggle { display: flex; background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 3px; margin-bottom: 18px; gap: 3px; }
+  .role-toggle button { flex: 1; border: none; background: transparent; padding: 8px 4px; border-radius: 8px; font-size: 12px; font-weight: 600; color: var(--ink-soft); transition: background .15s, color .15s; }
+  .role-toggle button.active { background: var(--surface); color: var(--accent); box-shadow: var(--shadow); }
+  .role-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 18px; }
+  .role-card { border: 1.5px solid var(--line); border-radius: 12px; padding: 14px 12px; text-align: center; background: var(--bg); }
+  .role-card.active { border-color: var(--accent); background: var(--accent-soft); }
+  .role-card .ic { font-size: 20px; margin-bottom: 6px; }
+  .role-card .t { font-weight: 700; font-size: 12.5px; }
+  .field { margin-bottom: 14px; }
+  .field label { display: block; font-size: 12px; font-weight: 600; color: var(--ink-soft); margin-bottom: 5px; }
+  .field input, .field select, .field textarea { width: 100%; padding: 10px 12px; border-radius: 9px; border: 1px solid var(--line); background: var(--bg); color: var(--ink); }
+  .field textarea { resize: vertical; min-height: 70px; }
+  .field input:focus, .field select:focus, .field textarea:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .pw-wrap { position: relative; }
+  .pw-wrap input { padding-right: 40px; }
+  .pw-toggle { position: absolute; right: 6px; top: 50%; transform: translateY(-50%); background: none; border: none; color: var(--ink-faint); font-size: 12px; padding: 6px; }
+  .btn { display: inline-flex; align-items: center; justify-content: center; gap: 7px; border: none; border-radius: 10px; padding: 11px 18px; font-weight: 600; font-size: 14px; transition: transform .1s, opacity .15s, background .15s; }
+  .btn:active { transform: scale(.98); }
+  .btn-primary { background: var(--accent); color: var(--accent-ink); width: 100%; }
+  .btn-primary:hover { background: var(--accent-dark); }
+  .btn-primary[disabled] { opacity: .7; cursor: default; }
+  .btn-ghost { background: transparent; color: var(--ink-soft); border: 1px solid var(--line); }
+  .btn-ghost:hover { color: var(--ink); border-color: var(--ink-faint); }
+  .btn-sm { padding: 6px 12px; font-size: 12.5px; border-radius: 8px; }
+  .btn-danger-outline { background: transparent; color: var(--danger); border: 1px solid var(--danger); }
+  .login-hint { margin-top: 14px; font-size: 12px; color: var(--ink-faint); text-align: center; }
+  .login-links { margin-top: 14px; display: flex; justify-content: space-between; font-size: 12.5px; }
+  .login-links button { background: none; border: none; color: var(--accent-dark); font-weight: 600; padding: 0; }
+  .spinner { width: 15px; height: 15px; border-radius: 50%; border: 2px solid rgba(255,255,255,.4); border-top-color: currentColor; animation: spin .7s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  @media (prefers-reduced-motion: reduce) { .spinner { animation: none; } }
+  .reset-confirm { background: var(--success-bg); color: var(--success); border-radius: 10px; padding: 12px 14px; font-size: 13px; margin-top: 12px; }
+
+  /* ---------- App shell ---------- */
+  .topbar { display: flex; align-items: center; gap: 20px; padding: 12px 24px; background: var(--surface); border-bottom: 1px solid var(--line); position: sticky; top: 27px; z-index: 100; }
+  .topbar-brand { display: flex; align-items: center; gap: 9px; font-weight: 700; font-size: 15.5px; margin-right: 8px; }
+  .topbar-brand .brand-mark { width: 26px; height: 26px; font-size: 12px; border-radius: 7px; }
+  .topbar nav { display: flex; gap: 4px; flex: 1; }
+  .topbar nav button { background: none; border: none; padding: 8px 12px; border-radius: 8px; font-size: 13.5px; font-weight: 600; color: var(--ink-soft); position: relative; }
+  .topbar nav button.active { color: var(--accent); background: var(--accent-soft); }
+  .topbar-right { display: flex; align-items: center; gap: 6px; position: relative; }
+  .icon-btn { background: none; border: 1px solid transparent; width: 34px; height: 34px; border-radius: 9px; display: flex; align-items: center; justify-content: center; color: var(--ink-soft); position: relative; }
+  .icon-btn:hover { background: var(--bg); color: var(--ink); }
+  .icon-btn.active { background: var(--accent-soft); color: var(--accent-dark); }
+  .dot { position: absolute; top: 6px; right: 6px; width: 7px; height: 7px; border-radius: 50%; background: var(--danger); border: 1.5px solid var(--surface); }
+  .avatar-btn { display: flex; align-items: center; gap: 8px; background: none; border: 1px solid var(--line); border-radius: 100px; padding: 4px 12px 4px 4px; color: var(--ink); }
+  .avatar-circle { width: 26px; height: 26px; border-radius: 50%; background: var(--accent-soft); color: var(--accent-dark); display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 11.5px; }
+  .avatar-btn span { font-size: 12.5px; font-weight: 600; }
+  .dropdown-panel { position: absolute; top: 42px; right: 0; width: 320px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--shadow); z-index: 150; overflow: hidden; }
+  .dropdown-panel h4 { margin: 0; padding: 12px 16px; font-size: 13px; border-bottom: 1px solid var(--line); }
+  .dropdown-item { padding: 11px 16px; border-bottom: 1px solid var(--line); font-size: 13px; }
+  .dropdown-item:last-child { border-bottom: none; }
+  .dropdown-item .t { font-weight: 600; margin-bottom: 2px; }
+  .dropdown-item .d { color: var(--ink-soft); font-size: 12px; }
+  .dropdown-item .when { color: var(--ink-faint); font-size: 11px; margin-top: 3px; }
+  .menu-panel .dropdown-item { display: flex; align-items: center; gap: 9px; cursor: pointer; }
+  .menu-panel .dropdown-item:hover { background: var(--bg); }
+
+  main { flex: 1; padding: 28px 24px 60px; max-width: 1080px; width: 100%; margin: 0 auto; }
+  .page-head { margin-bottom: 22px; display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+  .page-head h1 { font-size: 22px; margin: 0 0 4px; }
+  .page-head p { color: var(--ink-soft); font-size: 13.5px; margin: 0; }
+  .back-link { background: none; border: none; color: var(--ink-soft); font-size: 13px; margin-bottom: 14px; padding: 0; font-weight: 600; }
+
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 18px 20px; }
+  .grid-stats { display: grid; grid-template-columns: repeat(3,1fr); gap: 12px; margin-bottom: 22px; }
+  @media (max-width: 700px) { .grid-stats { grid-template-columns: 1fr 1fr; } }
+  .stat .v { font-size: 24px; font-weight: 700; color: var(--accent); }
+  .stat .l { font-size: 12.5px; color: var(--ink-soft); margin-top: 3px; }
+  .two-col { display: grid; grid-template-columns: 1.5fr 1fr; gap: 16px; }
+  @media (max-width: 800px) { .two-col { grid-template-columns: 1fr; } }
+
+  .pill { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 100px; }
+  .pill-good { background: var(--success-bg); color: var(--success); }
+  .pill-info { background: var(--accent-soft); color: var(--accent-dark); }
+  .pill-warn { background: var(--warn-bg); color: var(--warn); }
+  .pill-bad { background: var(--danger-bg); color: var(--danger); }
+
+  .activity-row { display: flex; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--line); font-size: 13px; }
+  .activity-row:last-child { border-bottom: none; }
+  .activity-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); margin-top: 6px; flex-shrink: 0; }
+  .activity-when { color: var(--ink-faint); font-size: 11.5px; }
+
+  .subtabs { display: flex; gap: 8px; margin-bottom: 18px; }
+  .subtab-btn { background: var(--surface); border: 1px solid var(--line); padding: 8px 16px; border-radius: 100px; font-weight: 600; font-size: 13px; color: var(--ink-soft); }
+  .subtab-btn.active { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+
+  .deck-wrap { display: flex; flex-direction: column; align-items: center; }
+  .deck-meta { font-size: 12.5px; color: var(--ink-soft); margin-bottom: 14px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; justify-content: center; }
+  .deck-meta select { padding: 6px 10px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); font-size: 12px; }
+  .deck { position: relative; width: 320px; height: 430px; }
+  .swipe-card { position: absolute; inset: 0; background: var(--surface); border: 1px solid var(--line); border-radius: 18px; box-shadow: var(--shadow); overflow: hidden; transition: transform .32s cubic-bezier(.2,.8,.2,1), opacity .32s; display: flex; flex-direction: column; }
+  .swipe-card.leave-right { transform: translateX(420px) rotate(18deg); opacity: 0; }
+  .swipe-card.leave-left { transform: translateX(-420px) rotate(-18deg); opacity: 0; }
+  .card-band { height: 96px; display: flex; align-items: center; padding: 0 20px; }
+  .card-band .logo { width: 42px; height: 42px; border-radius: 10px; background: rgba(255,255,255,.25); color: white; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 15px; }
+  .card-body { padding: 16px 20px; flex: 1; display: flex; flex-direction: column; overflow-y: auto; }
+  .card-body h3 { margin: 0 0 3px; font-size: 17px; }
+  .card-body .meta { color: var(--ink-soft); font-size: 12.5px; margin-bottom: 10px; }
+  .card-body .quote { font-size: 12.5px; color: var(--ink-soft); font-style: italic; margin-bottom: 8px; }
+  .card-body .resume-snip { font-size: 11.5px; color: var(--ink-faint); border-left: 2px solid var(--line); padding-left: 8px; margin-top: auto; }
+  .tag-row { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+  .tag { background: var(--accent-soft); color: var(--accent-dark); font-size: 11px; font-weight: 600; padding: 4px 9px; border-radius: 100px; }
+  .swipe-actions { display: flex; gap: 22px; margin-top: 22px; }
+  .swipe-btn { width: 56px; height: 56px; border-radius: 50%; border: 1px solid var(--line); background: var(--surface); display: flex; align-items: center; justify-content: center; font-size: 22px; box-shadow: var(--shadow); }
+  .swipe-btn.pass { color: var(--danger); }
+  .swipe-btn.like { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+  .deck-empty { text-align: center; color: var(--ink-soft); padding: 60px 20px; }
+
+  .match-toast { position: fixed; inset: 0; background: rgba(10,11,16,.6); z-index: 400; display: flex; align-items: center; justify-content: center; animation: fadein .2s ease; }
+  @keyframes fadein { from { opacity: 0; } to { opacity: 1; } }
+  .match-toast-card { background: var(--surface); border-radius: 20px; padding: 36px 32px; text-align: center; max-width: 320px; box-shadow: var(--shadow); }
+  .match-toast-card .big { font-size: 40px; margin-bottom: 6px; }
+  .match-toast-card h2 { margin: 0 0 6px; font-size: 20px; }
+  .match-toast-card p { color: var(--ink-soft); font-size: 13px; margin: 0 0 20px; }
+
+  .search-bar { display: flex; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; }
+  .search-bar input[type="text"] { flex: 1; min-width: 180px; padding: 10px 14px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); }
+  .search-bar select { padding: 10px 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); }
+  .job-list { display: flex; flex-direction: column; gap: 10px; }
+  .job-row { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; display: flex; align-items: center; gap: 14px; cursor: pointer; transition: border-color .15s; }
+  .job-row:hover { border-color: var(--accent); }
+  .job-row .logo { width: 40px; height: 40px; border-radius: 9px; flex-shrink: 0; color: white; font-weight: 700; display: flex; align-items: center; justify-content: center; font-size: 14px; }
+  .job-row .info { flex: 1; min-width: 0; }
+  .job-row .info h4 { margin: 0 0 2px; font-size: 14.5px; }
+  .job-row .info .meta { font-size: 12px; color: var(--ink-soft); }
+  .job-row .match { font-size: 12px; font-weight: 700; color: var(--accent-dark); flex-shrink: 0; }
+  .job-row .row-actions { display: flex; gap: 6px; flex-shrink: 0; }
+  .no-results { text-align: center; color: var(--ink-soft); padding: 40px 20px; }
+
+  .match-list { display: flex; flex-direction: column; gap: 10px; }
+  .match-row { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; display: flex; align-items: center; gap: 14px; cursor: pointer; }
+  .match-row:hover { border-color: var(--accent); }
+  .match-row .logo { width: 42px; height: 42px; border-radius: 10px; color: white; font-weight: 700; display: flex; align-items: center; justify-content: center; font-size: 15px; flex-shrink: 0; }
+  .match-row .info { flex: 1; min-width: 0; }
+  .match-row .info h4 { margin: 0 0 2px; font-size: 14.5px; }
+  .match-row .preview { font-size: 12.5px; color: var(--ink-soft); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .match-row .when { font-size: 11px; color: var(--ink-faint); flex-shrink: 0; }
+  .unread-badge { background: var(--accent); color: var(--accent-ink); font-size: 10.5px; font-weight: 700; width: 18px; height: 18px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+
+  .messages-layout { display: grid; grid-template-columns: 260px 1fr; gap: 0; border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; height: 520px; }
+  @media (max-width: 700px) { .messages-layout { grid-template-columns: 1fr; height: auto; } }
+  .conv-list { border-right: 1px solid var(--line); overflow-y: auto; background: var(--surface); }
+  .conv-item { padding: 12px 14px; border-bottom: 1px solid var(--line); cursor: pointer; display: flex; gap: 10px; align-items: center; }
+  .conv-item:hover { background: var(--bg); }
+  .conv-item.active { background: var(--accent-soft); }
+  .conv-item .logo { width: 34px; height: 34px; border-radius: 9px; color: white; font-weight: 700; font-size: 13px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .conv-item .info { min-width: 0; }
+  .conv-item .info h5 { margin: 0 0 2px; font-size: 13px; }
+  .conv-item .info p { margin: 0; font-size: 11.5px; color: var(--ink-soft); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .thread { display: flex; flex-direction: column; background: var(--bg); }
+  .thread-head { padding: 12px 16px; background: var(--surface); border-bottom: 1px solid var(--line); font-weight: 700; font-size: 13.5px; }
+  .thread-body { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 10px; }
+  .bubble { max-width: 72%; padding: 9px 13px; border-radius: 14px; font-size: 13px; line-height: 1.45; }
+  .bubble.them { background: var(--surface); border: 1px solid var(--line); align-self: flex-start; border-bottom-left-radius: 4px; }
+  .bubble.me { background: var(--accent); color: var(--accent-ink); align-self: flex-end; border-bottom-right-radius: 4px; }
+  .bubble .time { display: block; font-size: 10px; opacity: .65; margin-top: 4px; }
+  .typing-indicator { align-self: flex-start; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 10px 14px; display: flex; gap: 4px; }
+  .typing-indicator span { width: 5px; height: 5px; border-radius: 50%; background: var(--ink-faint); animation: bounce 1.1s infinite; }
+  .typing-indicator span:nth-child(2) { animation-delay: .15s; }
+  .typing-indicator span:nth-child(3) { animation-delay: .3s; }
+  @keyframes bounce { 0%, 60%, 100% { transform: translateY(0); opacity: .5; } 30% { transform: translateY(-3px); opacity: 1; } }
+  .thread-input { display: flex; gap: 8px; padding: 12px; background: var(--surface); border-top: 1px solid var(--line); }
+  .thread-input input { flex: 1; padding: 10px 13px; border-radius: 10px; border: 1px solid var(--line); background: var(--bg); color: var(--ink); }
+  .thread-input button { background: var(--accent); color: var(--accent-ink); border: none; border-radius: 10px; padding: 0 16px; font-weight: 600; }
+  .empty-thread { flex: 1; display: flex; align-items: center; justify-content: center; color: var(--ink-faint); font-size: 13px; }
+
+  .modal-backdrop { position: fixed; inset: 0; background: rgba(10,11,16,.55); z-index: 300; display: flex; align-items: flex-start; justify-content: center; padding: 60px 20px; overflow-y: auto; }
+  .modal-card { background: var(--surface); border-radius: 18px; max-width: 460px; width: 100%; box-shadow: var(--shadow); overflow: hidden; }
+  .modal-band { height: 90px; display: flex; align-items: center; padding: 0 22px; color: white; font-weight: 700; font-size: 18px; }
+  .modal-body { padding: 20px 22px; }
+  .modal-body h2 { margin: 0 0 4px; font-size: 19px; }
+  .modal-body .meta { color: var(--ink-soft); font-size: 13px; margin-bottom: 14px; }
+  .modal-body .desc { font-size: 13.5px; color: var(--ink-soft); margin-bottom: 16px; }
+  .modal-actions { display: flex; gap: 10px; padding: 0 22px 22px; }
+  .toast-mini { position: fixed; bottom: 26px; left: 50%; transform: translateX(-50%); background: var(--ink); color: var(--bg); padding: 10px 18px; border-radius: 100px; font-size: 13px; z-index: 500; box-shadow: var(--shadow); animation: toastin .25s ease; white-space: nowrap; }
+  @keyframes toastin { from { opacity: 0; transform: translate(-50%, 8px); } to { opacity: 1; transform: translate(-50%, 0); } }
+  .empty-state { text-align: center; padding: 50px 20px; color: var(--ink-soft); }
+
+  /* ---------- Profile ---------- */
+  .profile-layout { display: grid; grid-template-columns: 1.6fr 1fr; gap: 16px; }
+  @media (max-width: 800px) { .profile-layout { grid-template-columns: 1fr; } }
+  .profile-stack { display: flex; flex-direction: column; gap: 14px; }
+  .profile-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 14px; }
+  .profile-head h2 { margin: 0 0 4px; font-size: 19px; }
+  .profile-head .meta { color: var(--ink-soft); font-size: 13px; }
+  .profile-tags { margin-top: 8px; display: flex; gap: 6px; }
+  .profile-tag { background: var(--success-bg); color: var(--success); font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 100px; }
+  .section-card h3 { margin: 0 0 2px; font-size: 15px; }
+  .section-card .count { font-size: 12px; color: var(--ink-soft); margin-bottom: 10px; }
+  .section-card-head { display: flex; justify-content: space-between; align-items: flex-start; }
+  .line-item { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--line); font-size: 13px; gap: 10px; }
+  .line-item:last-child { border-bottom: none; }
+  .line-item .txt { flex: 1; }
+  .add-btn { width: 26px; height: 26px; border-radius: 50%; border: 1px solid var(--line); background: var(--bg); color: var(--accent-dark); font-weight: 700; flex-shrink: 0; }
+  .add-btn:hover { background: var(--accent-soft); }
+  .dropzone { border: 1.5px dashed var(--line); border-radius: 12px; padding: 26px 16px; text-align: center; color: var(--ink-soft); font-size: 12.5px; }
+  .dropzone .ic { font-size: 22px; margin-bottom: 8px; }
+  .parse-progress { text-align: center; padding: 20px; color: var(--ink-soft); font-size: 13px; }
+  .parse-progress .spinner { border-top-color: var(--accent); width: 20px; height: 20px; border-width: 2.5px; margin: 0 auto 10px; }
+  .resume-block h5 { margin: 14px 0 6px; font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: var(--ink-faint); }
+  .resume-block h5:first-child { margin-top: 0; }
+
+  /* ---------- Forms ---------- */
+  .form-card { max-width: 560px; }
+  .checkbox-row { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--ink-soft); margin-bottom: 16px; }
+  .tag-input-row { display: flex; gap: 8px; margin-bottom: 8px; }
+  .tag-input-row input { flex: 1; }
+
+  /* ---------- Admin tables ---------- */
+  .admin-toolbar { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; align-items: center; }
+  table.admin-table { width: 100%; border-collapse: collapse; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+  table.admin-table th { text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: var(--ink-faint); padding: 10px 14px; border-bottom: 1px solid var(--line); background: var(--bg); }
+  table.admin-table td { padding: 12px 14px; border-bottom: 1px solid var(--line); font-size: 13px; vertical-align: middle; }
+  table.admin-table tr:last-child td { border-bottom: none; }
+  table.admin-table .co-name { font-weight: 700; }
+  table.admin-table .co-owner { color: var(--ink-soft); font-size: 12px; }
+  .table-actions { display: flex; gap: 6px; }
+  .table-scroll { overflow-x: auto; }
+</style>
+</head>
+<body>
+
+<div class="proto-ribbon">🔧 <strong>Prototype</strong> — predefined sample data only, not connected to a live backend</div>
+<div id="app"></div>
+
+<script>
+(function () {
+  "use strict";
+
+  var COMPANY_COLORS = {
+    "Northwind Analytics": "#0EA5A0", "Vantage Payments": "#4F46E5", "Cascade Health": "#DB2777",
+    "Ironclad Systems": "#334155", "Driftwood Labs": "#EA580C", "Nimbus Data": "#0284C7", "Acme Corporation": "#7C3AED",
+  };
+  function personColor(seed) {
+    var palette = ["#4F46E5", "#0EA5A0", "#DB2777", "#EA580C", "#0284C7", "#7C3AED", "#334155"];
+    var h = 0;
+    for (var i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) % palette.length;
+    return palette[h];
+  }
+
+  var JOBS = [
+    { id: 1, title: "Senior Backend Engineer", company: "Northwind Analytics", location: "Bengaluru", remote: "Hybrid", type: "Full-time", match: 92, tags: ["Python", "PostgreSQL", "Kubernetes"], quote: "Your Python + Kubernetes background lines up almost exactly with what we need.", salary: "₹28L – ₹38L", isMatch: true, status: "published", applicants: 14, deadline: "2026-08-15" },
+    { id: 2, title: "Product Designer", company: "Northwind Analytics", location: "Onsite", remote: "Onsite", type: "Full-time", match: 41, tags: ["Figma", "User Research"], quote: "Requires Figma, User Research — not yet on your profile.", salary: "₹18L – ₹24L", isMatch: false, status: "published", applicants: 6, deadline: "2026-08-01" },
+    { id: 3, title: "Platform Engineer", company: "Vantage Payments", location: "Remote (India)", remote: "Remote", type: "Full-time", match: 87, tags: ["Kubernetes", "Go", "AWS"], quote: "Strong overlap on infra and orchestration skills.", salary: "₹32L – ₹42L", isMatch: true },
+    { id: 4, title: "Data Engineer", company: "Cascade Health", location: "Pune", remote: "Hybrid", type: "Full-time", match: 68, tags: ["Python", "Airflow", "SQL"], quote: "Solid match on Python and SQL, missing Airflow experience.", salary: "₹20L – ₹28L", isMatch: false },
+    { id: 5, title: "Site Reliability Engineer", company: "Ironclad Systems", location: "Remote (Global)", remote: "Remote", type: "Contract", match: 74, tags: ["Kubernetes", "Terraform", "PostgreSQL"], quote: "Kubernetes and PostgreSQL both line up well.", salary: "$70 – $90/hr", isMatch: false },
+    { id: 6, title: "Backend Engineer (Payments)", company: "Driftwood Labs", location: "Hyderabad", remote: "Onsite", type: "Full-time", match: 55, tags: ["Java", "PostgreSQL"], quote: "PostgreSQL matches, Java is not on your profile.", salary: "₹22L – ₹30L", isMatch: false },
+    { id: 7, title: "Cloud Infrastructure Engineer", company: "Nimbus Data", location: "Remote (India)", remote: "Remote", type: "Full-time", match: 81, tags: ["Kubernetes", "AWS", "Python"], quote: "Kubernetes, AWS, and Python all line up with your profile.", salary: "₹30L – ₹40L", isMatch: false },
+  ];
+
+  var CANDIDATES = [
+    { id: 1, name: "Rohan Mehta", headline: "Senior Backend Engineer", location: "Bengaluru", match: 88, skills: ["Python", "Kubernetes", "PostgreSQL"], quote: "5 yrs experience, strong infra background.", resumeSnippet: "Led migration of 40+ microservices to Kubernetes.", isMatch: true },
+    { id: 2, name: "Ananya Iyer", headline: "Product Designer", location: "Mumbai", match: 76, skills: ["Figma", "User Research"], quote: "Portfolio shows strong UX case studies.", resumeSnippet: "Designed onboarding flow that improved activation by 22%.", isMatch: true },
+    { id: 3, name: "Vikram Singh", headline: "Platform Engineer", location: "Remote", match: 65, skills: ["Go", "AWS"], quote: "Good infra fit, less Postgres experience.", resumeSnippet: "Built internal CI/CD platform used by 12 teams.", isMatch: false },
+    { id: 4, name: "Meera Nair", headline: "Data Engineer", location: "Pune", match: 52, skills: ["Python", "SQL"], quote: "Partial skill overlap.", resumeSnippet: "Built ETL pipelines processing 2TB/day.", isMatch: false },
+    { id: 5, name: "Karthik Rao", headline: "Site Reliability Engineer", location: "Hyderabad", match: 81, skills: ["Kubernetes", "Terraform"], quote: "Strong ops background.", resumeSnippet: "On-call lead for a 99.95% uptime platform.", isMatch: false },
+    { id: 6, name: "Divya Menon", headline: "Backend Engineer", location: "Chennai", match: 35, skills: ["Java"], quote: "Limited overlap with role requirements.", resumeSnippet: "3 years building internal billing tools.", isMatch: false },
+  ];
+
+  var CANDIDATE_MATCHES_SEED = [
+    { jobId: 1, unread: 1, lastMsg: "Thanks for your interest — are you free for a quick call Thursday?", when: "2h ago" },
+    { jobId: 3, unread: 0, lastMsg: "You: Sounds good, I'll send over some available times.", when: "1d ago" },
+  ];
+  var CANDIDATE_THREAD_SEED = {
+    1: [
+      { from: "them", text: "Hi Priya — loved your profile, especially the Kubernetes migration work.", time: "10:02 AM" },
+      { from: "them", text: "Thanks for your interest — are you free for a quick call Thursday?", time: "10:03 AM" },
+    ],
+    3: [
+      { from: "them", text: "Hey! Your background in Go and infra is a great fit for this role.", time: "Yesterday" },
+      { from: "me", text: "Thank you! I'd love to learn more about the team.", time: "Yesterday" },
+      { from: "them", text: "Great — how does Thursday or Friday afternoon look for a first chat?", time: "Yesterday" },
+      { from: "me", text: "Sounds good, I'll send over some available times.", time: "Yesterday" },
+    ],
+  };
+  var CANDIDATE_NOTIFICATIONS = [
+    { t: "It's a match!", d: "You and Northwind Analytics both liked Senior Backend Engineer.", when: "2h ago" },
+    { t: "New message", d: "Vantage Payments sent you a message.", when: "1d ago" },
+    { t: "Profile viewed", d: "Cascade Health viewed your profile.", when: "2d ago" },
+  ];
+
+  var EMPLOYER_MATCHES_SEED = [
+    { candId: 1, unread: 1, lastMsg: "Great, I can do Thursday at 3pm.", when: "1h ago" },
+  ];
+  var EMPLOYER_THREAD_SEED = {
+    1: [
+      { from: "them", text: "Hi! Thanks for the opportunity — happy to chat this week.", time: "9:40 AM" },
+      { from: "me", text: "Great, I can do Thursday at 3pm.", time: "9:55 AM" },
+    ],
+  };
+  var EMPLOYER_NOTIFICATIONS = [
+    { t: "New candidate match", d: "Rohan Mehta liked Senior Backend Engineer.", when: "1h ago" },
+    { t: "New message", d: "Rohan Mehta sent you a message.", when: "1h ago" },
+    { t: "Job expiring soon", d: "Product Designer's application deadline is in 3 days.", when: "5h ago" },
+  ];
+
+  var COMPANIES_SEED = [
+    { id: 1, name: "Nimbus Data", owner: "employer1@nimbusdata.demo", industry: "Cloud Infrastructure", status: "pending", created: "2026-07-06" },
+    { id: 2, name: "Vantage Payments", owner: "employer2@vantagepayments.demo", industry: "FinTech", status: "pending", created: "2026-07-06" },
+    { id: 3, name: "Acme Corporation", owner: "employer3@acmecorporation.demo", industry: "Enterprise SaaS", status: "approved", created: "2026-07-01" },
+    { id: 4, name: "Driftwood Labs", owner: "employer4@driftwoodlabs.demo", industry: "Product Design", status: "pending", created: "2026-07-06" },
+    { id: 5, name: "Cascade Health", owner: "employer5@cascadehealth.demo", industry: "HealthTech", status: "rejected", created: "2026-06-30" },
+    { id: 6, name: "Ironclad Systems", owner: "employer6@ironcladsystems.demo", industry: "Cybersecurity", status: "approved", created: "2026-06-29" },
+  ];
+  var DLQ_SEED = [
+    { id: 1, filename: "resume_rohan.pdf", candidate: "rohan.demo@example.com", error: "Unsupported text encoding", attempts: 3, when: "3h ago" },
+    { id: 2, filename: "cv_scan.pdf", candidate: "meera.demo@example.com", error: "Password-protected file", attempts: 3, when: "1d ago" },
+  ];
+
+  var RESUME_PARSE = {
+    skills: ["Docker", "GraphQL"],
+    experience: ["Senior Backend Engineer — Acme Corp — Jan 2022 – Present"],
+    education: ["B.S., Computer Science — MIT"],
+    certifications: ["Certified Kubernetes Administrator (CKA)"],
+  };
+
+  function freshState() {
+    return {
+      screen: "home",
+      role: null,
+      loginRole: "candidate",
+      loggingIn: false,
+      notifOpen: false,
+      menuOpen: false,
+      modalJob: null,
+      matchToast: null,
+      toastMsg: null,
+      cardAnim: null,
+      typing: false,
+      registerSubmitted: false,
+      forgotSubmitted: false,
+
+      candidate: {
+        jobsSubtab: "discover",
+        deckIndex: 0,
+        matches: JSON.parse(JSON.stringify(CANDIDATE_MATCHES_SEED)),
+        threads: JSON.parse(JSON.stringify(CANDIDATE_THREAD_SEED)),
+        activeThread: null,
+        search: "", filterLocation: "", filterRemote: "",
+        resumeState: "empty", // empty | parsing | parsed
+        addedSkills: [], addedExperience: [], addedEducation: [], addedCertifications: [],
+        skills: ["Python", "Kubernetes", "PostgreSQL"],
+        experience: ["Senior Backend Engineer — Acme Corp — Jan 2022 – Present"],
+        education: ["B.S., Computer Science — MIT"],
+        certifications: [],
+      },
+      employer: {
+        jobsSubtab: "manage",
+        deckIndex: 0,
+        minScore: 0,
+        matches: JSON.parse(JSON.stringify(EMPLOYER_MATCHES_SEED)),
+        threads: JSON.parse(JSON.stringify(EMPLOYER_THREAD_SEED)),
+        activeThread: null,
+        companyJobs: [JOBS[0], JOBS[1]],
+        nextJobId: 100,
+      },
+      admin: {
+        companies: JSON.parse(JSON.stringify(COMPANIES_SEED)),
+        companyTab: "pending",
+        selected: {},
+        dlq: JSON.parse(JSON.stringify(DLQ_SEED)),
+      },
+    };
+  }
+
+  var state = freshState();
+
+  function byId(id) { return JOBS.filter(function (j) { return j.id === id; })[0]; }
+  function candById(id) { return CANDIDATES.filter(function (c) { return c.id === id; })[0]; }
+  function esc(s) { var d = document.createElement("div"); d.textContent = s == null ? "" : s; return d.innerHTML; }
+  function initials(name) { return name.split(" ").map(function (w) { return w[0]; }).join("").slice(0, 2).toUpperCase(); }
+  function color(name) { return COMPANY_COLORS[name] || "#4F46E5"; }
+
+  function showToast(msg) {
+    state.toastMsg = msg;
+    render();
+    setTimeout(function () { state.toastMsg = null; render(); }, 2200);
+  }
+
+  // ===================== PUBLIC SCREENS =====================
+
+  function renderPubTopbar() {
+    var onAuthScreen = state.screen === "login" || state.screen === "register" || state.screen === "forgot";
+    var links = onAuthScreen
+      ? '<button onclick="Proto.go(\'home\')">← Back to home</button>'
+      : '<button onclick="Proto.go(\'login\')">Login</button><button class="solid" onclick="Proto.go(\'register\')">Register</button>';
+    return '<div class="pub-topbar">' +
+      '<div class="login-brand" style="margin-bottom:0; cursor:pointer;" onclick="Proto.go(\'home\')"><span class="brand-mark">L</span><span class="brand-name">LogicNova</span></div>' +
+      '<div class="links">' + links + "</div>" +
+    "</div>";
+  }
+
+  function renderHome() {
+    return renderPubTopbar() +
+      '<div class="home-hero">' +
+        '<div class="eyebrow">LogicNova</div>' +
+        "<h1>Your career profile, built right.</h1>" +
+        "<p>Build a complete, professional candidate profile — skills, experience, and resume all in one place — so you're ready the moment opportunity shows up.</p>" +
+        '<div class="cta">' +
+          '<button class="btn btn-primary" onclick="Proto.go(\'register\')">Create your account</button>' +
+          '<button class="btn-outline" onclick="Proto.go(\'login\')">Sign in</button>' +
+        "</div>" +
+      "</div>" +
+      '<div class="home-features">' +
+        '<div><div class="ic">👤</div><h4>Build your profile</h4><p>Add experience, skills, education, and more — organized the way employers actually look for it.</p></div>' +
+        '<div><div class="ic">📄</div><h4>Upload your resume</h4><p>Keep an up-to-date PDF or DOCX on file, parsed automatically for skills and experience.</p></div>' +
+        '<div><div class="ic">🎯</div><h4>Swipe to match</h4><p>Like the roles you want — when an employer likes you back, chat unlocks instantly.</p></div>' +
+      "</div>";
+  }
+
+  function renderLogin() {
+    return renderPubTopbar() + '<div class="login-wrap">' +
+        '<div class="login-card">' +
+          '<div class="login-brand"><span class="brand-mark">L</span><span class="brand-name">LogicNova</span></div>' +
+          "<h1>Welcome back</h1>" +
+          '<p class="sub">Sign in to continue.</p>' +
+          '<div class="role-toggle">' +
+            '<button class="' + (state.loginRole === "candidate" ? "active" : "") + '" onclick="Proto.setRole(\'candidate\')">Candidate</button>' +
+            '<button class="' + (state.loginRole === "employer" ? "active" : "") + '" onclick="Proto.setRole(\'employer\')">Employer</button>' +
+            '<button class="' + (state.loginRole === "admin" ? "active" : "") + '" onclick="Proto.setRole(\'admin\')">Admin</button>' +
+          "</div>" +
+          '<div class="field"><label>Email</label><input type="text" value="' + esc(demoEmail()) + '" readonly /></div>' +
+          '<div class="field"><label>Password</label><div class="pw-wrap">' +
+            '<input id="pw-input" type="password" value="••••••••••" readonly />' +
+            '<button class="pw-toggle" onclick="Proto.togglePw()" type="button">Show</button>' +
+          "</div></div>" +
+          '<button class="btn btn-primary" onclick="Proto.login()" ' + (state.loggingIn ? "disabled" : "") + ">" +
+            (state.loggingIn ? '<span class="spinner"></span> Signing in…' : "Login") +
+          "</button>" +
+          '<div class="login-links"><button onclick="Proto.go(\'forgot\')">Forgot password?</button><button onclick="Proto.go(\'register\')">Create account</button></div>' +
+          '<div class="login-hint">Demo mode — any credentials work, just click Login.</div>' +
+        "</div>" +
+      "</div>";
+  }
+
+  function demoEmail() {
+    if (state.loginRole === "employer") return "hr@northwindanalytics.demo";
+    if (state.loginRole === "admin") return "admin@logicnova.dev";
+    return "priya.sharma@example.com";
+  }
+
+  function renderRegister() {
+    if (state.registerSubmitted) {
+      return renderPubTopbar() + '<div class="login-wrap"><div class="login-card" style="text-align:center;">' +
+        '<div style="font-size:34px; margin-bottom:6px;">✅</div><h1>Account created</h1>' +
+        '<p class="sub">Taking you to your ' + (state.loginRole === "employer" ? "employer" : "candidate") + " dashboard…</p>" +
+        '<span class="spinner" style="color:var(--accent);"></span>' +
+      "</div></div>";
+    }
+    return renderPubTopbar() + '<div class="login-wrap">' +
+      '<div class="login-card">' +
+        '<div class="login-brand"><span class="brand-mark">L</span><span class="brand-name">LogicNova</span></div>' +
+        "<h1>Create your account</h1>" +
+        '<p class="sub">Choose how you\'ll use LogicNova.</p>' +
+        '<div class="role-cards">' +
+          '<div class="role-card ' + (state.loginRole === "candidate" ? "active" : "") + '" onclick="Proto.setRole(\'candidate\')"><div class="ic">🧑‍💻</div><div class="t">Candidate</div></div>' +
+          '<div class="role-card ' + (state.loginRole === "employer" ? "active" : "") + '" onclick="Proto.setRole(\'employer\')"><div class="ic">🏢</div><div class="t">Employer</div></div>' +
+        "</div>" +
+        '<div class="field"><label>Full name</label><input type="text" value="' + (state.loginRole === "employer" ? "Anjali Verma" : "Priya Sharma") + '" readonly /></div>' +
+        '<div class="field"><label>Email</label><input type="text" value="' + esc(demoEmail()) + '" readonly /></div>' +
+        '<div class="field"><label>Password</label><input type="password" value="••••••••••" readonly /></div>' +
+        '<button class="btn btn-primary" onclick="Proto.register()">Create account</button>' +
+        '<div class="login-links"><button onclick="Proto.go(\'login\')">Already have an account? Sign in</button><span></span></div>' +
+      "</div>" +
+    "</div>";
+  }
+
+  function renderForgot() {
+    return renderPubTopbar() + '<div class="login-wrap">' +
+      '<div class="login-card">' +
+        '<div class="login-brand"><span class="brand-mark">L</span><span class="brand-name">LogicNova</span></div>' +
+        "<h1>Reset your password</h1>" +
+        '<p class="sub">Enter your email and we\'ll send you a reset link.</p>' +
+        '<div class="field"><label>Email</label><input type="text" value="priya.sharma@example.com" readonly /></div>' +
+        '<button class="btn btn-primary" onclick="Proto.forgotSubmit()">Send reset link</button>' +
+        (state.forgotSubmitted ? '<div class="reset-confirm">If an account exists for this email, we\'ve sent a reset link. (prototype — no email actually sent)</div>' : "") +
+        '<div class="login-links"><button onclick="Proto.go(\'login\')">Back to login</button><span></span></div>' +
+      "</div>" +
+    "</div>";
+  }
+
+  // ===================== APP SHELL =====================
+
+  function navItem(key, label) {
+    return '<button class="' + (state.screen === key ? "active" : "") + '" onclick="Proto.go(\'' + key + '\')">' + label + "</button>";
+  }
+
+  function renderTopbar() {
+    var navHtml = "";
+    if (state.role === "candidate") {
+      navHtml = navItem("dashboard", "Dashboard") + navItem("jobs", "Jobs") + navItem("matches", "Matches") + navItem("messages", "Messages");
+    } else if (state.role === "employer") {
+      navHtml = navItem("dashboard", "Dashboard") + navItem("jobs", "Jobs") + navItem("matches", "Matches") + navItem("messages", "Messages");
+    } else if (state.role === "admin") {
+      navHtml = navItem("admin-companies", "Company Verification") + navItem("admin-dlq", "Resume Parsing DLQ");
+    }
+    var unread = 0;
+    if (state.role === "candidate") unread = state.candidate.matches.reduce(function (a, m) { return a + m.unread; }, 0);
+    if (state.role === "employer") unread = state.employer.matches.reduce(function (a, m) { return a + m.unread; }, 0);
+    var notifCount = state.role === "employer" ? EMPLOYER_NOTIFICATIONS.length : CANDIDATE_NOTIFICATIONS.length;
+    var avatarLabel = state.role === "admin" ? "Admin" : (state.role === "employer" ? "Anjali" : "Priya");
+    var avatarInit = state.role === "admin" ? "A" : (state.role === "employer" ? "AV" : "PS");
+    return "" +
+      '<div class="topbar">' +
+        '<div class="topbar-brand"><span class="brand-mark">L</span>LogicNova</div>' +
+        "<nav>" + navHtml + "</nav>" +
+        '<div class="topbar-right">' +
+          (state.role !== "admin" ? '<button class="icon-btn ' + (state.screen === "notifications" ? "active" : "") + '" onclick="Proto.go(\'notifications\')" title="Notifications">🔔' + (notifCount ? '<span class="dot"></span>' : "") + "</button>" : "") +
+          '<button class="avatar-btn" onclick="Proto.toggleMenu()"><span class="avatar-circle">' + avatarInit + '</span><span>' + avatarLabel + "</span></button>" +
+          (state.menuOpen ? renderMenuPanel() : "") +
+        "</div>" +
+      "</div>";
+  }
+
+  function renderMenuPanel() {
+    var extra = "";
+    if (state.role === "candidate") extra = '<div class="dropdown-item" onclick="Proto.go(\'profile\')">👤 Profile</div>';
+    if (state.role === "employer") extra = '<div class="dropdown-item" onclick="Proto.go(\'company-setup\')">🏢 Company Setup</div>';
+    return '<div class="dropdown-panel menu-panel">' + extra +
+      '<div class="dropdown-item" onclick="Proto.logout()">🚪 Logout</div>' +
+    "</div>";
+  }
+
+  function renderNotifications() {
+    var list = state.role === "employer" ? EMPLOYER_NOTIFICATIONS : CANDIDATE_NOTIFICATIONS;
+    return '<div class="page-head"><h1>Notification Center</h1><p>Everything that\'s happened on your account.</p></div>' +
+      '<div class="card" style="padding:0;">' + list.map(function (n, i) {
+        return '<div class="dropdown-item" style="' + (i === list.length - 1 ? "border-bottom:none;" : "") + '"><div class="t">' + esc(n.t) + '</div><div class="d">' + esc(n.d) + '</div><div class="when">' + esc(n.when) + "</div></div>";
+      }).join("") + "</div>";
+  }
+
+  // ===================== CANDIDATE SCREENS =====================
+
+  function renderCandidateDashboard() {
+    var c = state.candidate;
+    return '<div class="page-head"><h1>Welcome back, Priya</h1><p>Here\'s what\'s happening with your job search.</p></div>' +
+      '<div class="grid-stats">' +
+        '<div class="card stat"><div class="v">72%</div><div class="l">Profile completion</div></div>' +
+        '<div class="card stat"><div class="v">' + c.matches.length + '</div><div class="l">Active matches</div></div>' +
+        '<div class="card stat"><div class="v">' + c.matches.reduce(function (a, m) { return a + m.unread; }, 0) + '</div><div class="l">Unread messages</div></div>' +
+      "</div>" +
+      '<div class="two-col">' +
+        '<div class="card">' +
+          '<h3 style="margin-top:0;">Continue your search</h3>' +
+          '<p style="color:var(--ink-soft); font-size:13px;">' + (JOBS.length - c.deckIndex) + ' jobs are waiting in your discovery deck.</p>' +
+          '<button class="btn btn-primary" style="width:auto;" onclick="Proto.go(\'jobs\')">Discover jobs →</button>' +
+        "</div>" +
+        '<div class="card">' +
+          '<h3 style="margin-top:0;">Recent activity</h3>' +
+          CANDIDATE_NOTIFICATIONS.map(function (n) {
+            return '<div class="activity-row"><span class="activity-dot"></span><div><div>' + esc(n.d) + '</div><div class="activity-when">' + esc(n.when) + "</div></div></div>";
+          }).join("") +
+        "</div>" +
+      "</div>";
+  }
+
+  function renderCandidateProfile() {
+    var c = state.candidate;
+    return '<div class="page-head"><h1>Your profile</h1><p>Manage what employers see when they review your application.</p></div>' +
+      '<div class="profile-layout">' +
+        '<div class="profile-stack">' +
+          '<div class="card">' +
+            '<div class="profile-head">' +
+              '<div><h2>Priya Sharma</h2><div class="meta">Senior Backend Engineer · Austin</div>' +
+              '<div class="profile-tags"><span class="profile-tag">Public</span><span class="profile-tag">Open to work</span></div></div>' +
+              '<button class="btn btn-ghost btn-sm" onclick="Proto.editProfile()">✎ Edit profile</button>' +
+            "</div>" +
+          "</div>" +
+          '<div class="card">' +
+            "<h3 style=\"margin-top:0;\">Resume</h3>" +
+            renderResumeCard() +
+          "</div>" +
+          renderProfileSection("Skills", c.skills, "skill") +
+          renderProfileSection("Experience", c.experience, "experience") +
+          renderProfileSection("Education", c.education, "education") +
+          renderProfileSection("Certifications", c.certifications, "certification") +
+        "</div>" +
+        '<div class="profile-stack">' +
+          '<div class="card"><h3 style="margin-top:0;">Profile completion</h3>' +
+            '<div style="font-size:26px; font-weight:700; color:var(--accent);">72%</div>' +
+            '<p style="font-size:12.5px; color:var(--ink-soft);">Add a professional summary and a language to reach 100%.</p>' +
+          "</div>" +
+          '<div class="card"><h3 style="margin-top:0;">Your data</h3>' +
+            '<p style="font-size:12.5px; color:var(--ink-soft);">Download a copy of everything tied to your account.</p>' +
+            '<button class="btn btn-ghost btn-sm" onclick="Proto.exportData()">Export my data</button>' +
+          "</div>" +
+        "</div>" +
+      "</div>";
+  }
+
+  function renderProfileSection(title, items, kind) {
+    return '<div class="card section-card">' +
+      '<div class="section-card-head"><div><h3>' + esc(title) + '</h3><div class="count">' + items.length + " " + (items.length === 1 ? "entry" : "entries") + "</div></div>" +
+      '<button class="add-btn" onclick="Proto.addSection(\'' + kind + '\')" title="Add">+</button></div>' +
+      (items.length ? items.map(function (line) { return '<div class="line-item"><span class="txt">' + esc(line) + "</span></div>"; }).join("") : '<div style="font-size:12.5px; color:var(--ink-faint); padding:6px 0;">None added yet.</div>') +
+    "</div>";
+  }
+
+  function renderResumeCard() {
+    var c = state.candidate;
+    if (c.resumeState === "empty") {
+      return '<div class="dropzone"><div class="ic">📄</div><strong>No resume uploaded</strong><br/>Drag &amp; drop a PDF or DOCX, or click below.<br/><br/>' +
+        '<button class="btn btn-primary" style="width:auto;" onclick="Proto.uploadResume()">Upload your resume</button></div>';
+    }
+    if (c.resumeState === "parsing") {
+      return '<div class="parse-progress"><span class="spinner"></span><div style="margin-top:8px;">Parsing your resume…</div></div>';
+    }
+    return '<div>' +
+      '<div class="pill pill-good" style="margin-bottom:10px;">Resume parsed ✓</div>' +
+      renderResumeLines("Skills found", RESUME_PARSE.skills, c.addedSkills, "skill") +
+      renderResumeLines("Experience found", RESUME_PARSE.experience, c.addedExperience, "experience") +
+      renderResumeLines("Education found", RESUME_PARSE.education, c.addedEducation, "education") +
+      renderResumeLines("Certifications found", RESUME_PARSE.certifications, c.addedCertifications, "certification") +
+    "</div>";
+  }
+
+  function renderResumeLines(label, all, added, kind) {
+    return '<div class="resume-block"><h5>' + esc(label) + "</h5>" +
+      all.map(function (line) {
+        var isAdded = added.indexOf(line) !== -1;
+        return '<div class="line-item"><span class="txt">' + esc(line) + "</span>" +
+          (isAdded ? '<span class="pill pill-good">Added ✓</span>' : '<button class="add-btn" onclick="Proto.addToProfile(\'' + kind + '\', ' + JSON.stringify(line).replace(/"/g, "&quot;") + ')" title="Add to profile">+</button>') +
+        "</div>";
+      }).join("") +
+    "</div>";
+  }
+
+  function renderJobs() {
+    var sub = state.candidate.jobsSubtab;
+    return '<div class="page-head"><h1>Jobs</h1><p>Discover new roles or browse and search everything that\'s open.</p></div>' +
+      '<div class="subtabs">' +
+        '<button class="subtab-btn ' + (sub === "discover" ? "active" : "") + '" onclick="Proto.setJobsTab(\'discover\')">Discover</button>' +
+        '<button class="subtab-btn ' + (sub === "browse" ? "active" : "") + '" onclick="Proto.setJobsTab(\'browse\')">Browse &amp; Search</button>' +
+      "</div>" +
+      (sub === "discover" ? renderCandidateDeck() : renderBrowse());
+  }
+
+  function renderCandidateDeck() {
+    var c = state.candidate;
+    var remaining = JOBS.slice(c.deckIndex);
+    if (!remaining.length) {
+      return '<div class="deck-wrap"><div class="deck-empty"><div style="font-size:32px; margin-bottom:8px;">🎉</div>You\'re all caught up — no more jobs to review right now.<br/><button class="btn btn-ghost" style="margin-top:14px;" onclick="Proto.resetDeck()">Restart demo deck</button></div></div>';
+    }
+    var top = remaining[0];
+    var next = remaining[1];
+    var animClass = state.cardAnim ? " " + state.cardAnim : "";
+    return '<div class="deck-wrap">' +
+        '<div class="deck-meta">' + remaining.length + " jobs left · swipe right to like, left to pass</div>" +
+        '<div class="deck">' +
+          (next ? renderJobSwipeCard(next, "") : "") +
+          renderJobSwipeCard(top, animClass) +
+        "</div>" +
+        '<div class="swipe-actions">' +
+          '<button class="swipe-btn pass" onclick="Proto.swipeJob(\'left\')" aria-label="Pass">✕</button>' +
+          '<button class="swipe-btn like" onclick="Proto.swipeJob(\'right\')" aria-label="Like">♥</button>' +
+        "</div>" +
+      "</div>" +
+      (state.matchToast ? renderMatchToast() : "");
+  }
+
+  function renderJobSwipeCard(job, animClass) {
+    return '<div class="swipe-card' + animClass + '">' +
+      '<div class="card-band" style="background:' + color(job.company) + ';"><span class="logo">' + esc(initials(job.company)) + "</span></div>" +
+      '<div class="card-body">' +
+        "<h3>" + esc(job.title) + "</h3>" +
+        '<div class="meta">' + esc(job.company) + " · " + esc(job.location) + "</div>" +
+        '<span class="pill ' + (job.match >= 70 ? "pill-good" : "pill-info") + '">' + job.match + "% match</span>" +
+        '<div class="quote" style="margin-top:8px;">&ldquo;' + esc(job.quote) + '&rdquo;</div>' +
+        '<div class="tag-row">' + job.tags.map(function (t) { return '<span class="tag">' + esc(t) + "</span>"; }).join("") + "</div>" +
+      "</div>" +
+    "</div>";
+  }
+
+  function renderMatchToast() {
+    var entity = state.matchToast;
+    var isJob = state.role === "candidate";
+    var title = isJob ? entity.title : entity.headline;
+    var counterpart = isJob ? entity.company : entity.name;
+    return '<div class="match-toast" onclick="Proto.dismissMatch()">' +
+      '<div class="match-toast-card" onclick="event.stopPropagation()">' +
+        '<div class="big">🎉</div><h2>It\'s a match!</h2>' +
+        "<p>You and <strong>" + esc(counterpart) + "</strong> both liked <strong>" + esc(title) + "</strong>.</p>" +
+        '<button class="btn btn-primary" onclick="Proto.goToMatch(' + entity.id + ')">Message them</button>' +
+        '<div style="height:8px;"></div>' +
+        '<button class="btn btn-ghost" style="width:100%;" onclick="Proto.dismissMatch()">Keep swiping</button>' +
+      "</div>" +
+    "</div>";
+  }
+
+  function renderBrowse() {
+    var c = state.candidate;
+    var q = c.search.trim().toLowerCase();
+    var results = JOBS.filter(function (j) {
+      var matchesQ = !q || (j.title + " " + j.company + " " + j.tags.join(" ")).toLowerCase().indexOf(q) !== -1;
+      var matchesLoc = !c.filterLocation || j.location === c.filterLocation;
+      var matchesRemote = !c.filterRemote || j.remote === c.filterRemote;
+      return matchesQ && matchesLoc && matchesRemote;
+    });
+    var locations = Array.from(new Set(JOBS.map(function (j) { return j.location; })));
+    var remotes = Array.from(new Set(JOBS.map(function (j) { return j.remote; })));
+    return '<div class="search-bar">' +
+        '<input type="text" placeholder="Search title, company, or skill…" value="' + esc(c.search) + '" oninput="Proto.setSearch(this.value)" />' +
+        '<select onchange="Proto.setFilter(\'location\', this.value)">' +
+          '<option value="">All locations</option>' +
+          locations.map(function (l) { return '<option value="' + esc(l) + '" ' + (c.filterLocation === l ? "selected" : "") + ">" + esc(l) + "</option>"; }).join("") +
+        "</select>" +
+        '<select onchange="Proto.setFilter(\'remote\', this.value)">' +
+          '<option value="">Any work style</option>' +
+          remotes.map(function (r) { return '<option value="' + esc(r) + '" ' + (c.filterRemote === r ? "selected" : "") + ">" + esc(r) + "</option>"; }).join("") +
+        "</select>" +
+      "</div>" +
+      (results.length ? '<div class="job-list">' + results.map(renderJobRow).join("") + "</div>" : '<div class="no-results">No jobs match those filters — try clearing a filter.</div>');
+  }
+
+  function renderJobRow(j) {
+    return '<div class="job-row" onclick="Proto.openJob(' + j.id + ')">' +
+      '<span class="logo" style="background:' + color(j.company) + ';">' + esc(initials(j.company)) + "</span>" +
+      '<div class="info"><h4>' + esc(j.title) + '</h4><div class="meta">' + esc(j.company) + " · " + esc(j.location) + " · " + esc(j.type) + "</div></div>" +
+      '<div class="match">' + j.match + "% match</div>" +
+    "</div>";
+  }
+
+  function renderJobModal() {
+    var j = state.modalJob;
+    if (!j) return "";
+    return '<div class="modal-backdrop" onclick="Proto.closeJob()">' +
+      '<div class="modal-card" onclick="event.stopPropagation()">' +
+        '<div class="modal-band" style="background:' + color(j.company) + ';">' + esc(j.company) + "</div>" +
+        '<div class="modal-body">' +
+          "<h2>" + esc(j.title) + "</h2>" +
+          '<div class="meta">' + esc(j.location) + " · " + esc(j.type) + " · " + esc(j.salary) + "</div>" +
+          '<span class="pill ' + (j.match >= 70 ? "pill-good" : "pill-info") + '">' + j.match + "% skills match</span>" +
+          '<p class="desc" style="margin-top:14px;">' + esc(j.quote) + "</p>" +
+          '<div class="tag-row">' + j.tags.map(function (t) { return '<span class="tag">' + esc(t) + "</span>"; }).join("") + "</div>" +
+        "</div>" +
+        '<div class="modal-actions">' +
+          '<button class="btn btn-primary" onclick="Proto.applyJob()">Apply now</button>' +
+          '<button class="btn btn-ghost" onclick="Proto.closeJob()">Close</button>' +
+        "</div>" +
+      "</div>" +
+    "</div>";
+  }
+
+  function renderCandidateMatches() {
+    var c = state.candidate;
+    if (!c.matches.length) {
+      return '<div class="page-head"><h1>Matches</h1></div><div class="empty-state">No mutual matches yet — like a few jobs in Discover to see them here.</div>';
+    }
+    return '<div class="page-head"><h1>Matches</h1><p>Companies that liked you back.</p></div>' +
+      '<div class="match-list">' + c.matches.map(function (m) {
+        var j = byId(m.jobId);
+        return '<div class="match-row" onclick="Proto.openThread(' + j.id + ')">' +
+          '<span class="logo" style="background:' + color(j.company) + ';">' + esc(initials(j.company)) + "</span>" +
+          '<div class="info"><h4>' + esc(j.company) + " — " + esc(j.title) + '</h4><div class="preview">' + esc(m.lastMsg) + "</div></div>" +
+          '<div class="when">' + esc(m.when) + "</div>" +
+          (m.unread ? '<span class="unread-badge">' + m.unread + "</span>" : "") +
+        "</div>";
+      }).join("") + "</div>";
+  }
+
+  function renderCandidateMessages() {
+    var c = state.candidate;
+    if (!c.matches.length) return '<div class="page-head"><h1>Messages</h1></div><div class="empty-state">No conversations yet — get a mutual match first.</div>';
+    var active = c.activeThread;
+    return '<div class="page-head"><h1>Messages</h1></div>' +
+      '<div class="messages-layout">' +
+        '<div class="conv-list">' + c.matches.map(function (m) {
+          var j = byId(m.jobId);
+          return '<div class="conv-item ' + (active === j.id ? "active" : "") + '" onclick="Proto.openThread(' + j.id + ')">' +
+            '<span class="logo" style="background:' + color(j.company) + ';">' + esc(initials(j.company)) + "</span>" +
+            '<div class="info"><h5>' + esc(j.company) + '</h5><p>' + esc(m.lastMsg) + "</p></div>" +
+          "</div>";
+        }).join("") + "</div>" +
+        '<div class="thread">' + (active ? renderThreadBody(active, "candidate") : '<div class="empty-thread">Select a conversation</div>') + "</div>" +
+      "</div>";
+  }
+
+  // ===================== EMPLOYER SCREENS =====================
+
+  function renderEmployerDashboard() {
+    var e = state.employer;
+    var interested = e.matches.length;
+    return '<div class="page-head"><h1>Welcome back, Northwind Analytics</h1><p>Here\'s how your hiring is going.</p></div>' +
+      '<div class="grid-stats">' +
+        '<div class="card stat"><div class="v">' + e.companyJobs.length + '</div><div class="l">Open roles</div></div>' +
+        '<div class="card stat"><div class="v">' + interested + '</div><div class="l">Interested candidates</div></div>' +
+        '<div class="card stat"><div class="v">' + CANDIDATES.length + '</div><div class="l">In discovery deck</div></div>' +
+      "</div>" +
+      '<div class="two-col">' +
+        '<div class="card">' +
+          '<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;"><h3 style="margin:0;">Your jobs</h3><button class="btn btn-primary btn-sm" style="width:auto;" onclick="Proto.go(\'post-job\')">+ Post a job</button></div>' +
+          e.companyJobs.map(function (j) {
+            return '<div class="activity-row" style="align-items:center;"><div style="flex:1;"><strong>' + esc(j.title) + "</strong></div><span class=\"pill pill-good\">published</span></div>";
+          }).join("") +
+        "</div>" +
+        '<div class="card">' +
+          '<h3 style="margin-top:0;">Candidates to review</h3>' +
+          '<p style="font-size:13px; color:var(--ink-soft);">' + interested + " candidate" + (interested === 1 ? "" : "s") + " liked one of your jobs.</p>" +
+          '<button class="btn btn-primary" style="width:auto;" onclick="Proto.reviewCandidates()">Review candidates</button>' +
+        "</div>" +
+      "</div>";
+  }
+
+  function renderEmployerJobsPage() {
+    var sub = state.employer.jobsSubtab;
+    return '<div class="page-head"><h1>Jobs</h1><p>Manage your postings or find new candidates.</p></div>' +
+      '<div class="subtabs">' +
+        '<button class="subtab-btn ' + (sub === "manage" ? "active" : "") + '" onclick="Proto.setEmployerJobsTab(\'manage\')">Manage Jobs</button>' +
+        '<button class="subtab-btn ' + (sub === "find" ? "active" : "") + '" onclick="Proto.setEmployerJobsTab(\'find\')">Find Candidates</button>' +
+      "</div>" +
+      (sub === "manage" ? renderEmployerJobsList() : renderCandidateDiscovery());
+  }
+
+  function renderEmployerJobsList() {
+    var e = state.employer;
+    return '<div style="margin-bottom:12px; display:flex; justify-content:flex-end;"><button class="btn btn-primary btn-sm" style="width:auto;" onclick="Proto.go(\'post-job\')">+ Post a job</button></div>' +
+      '<div class="job-list">' + e.companyJobs.map(function (j) {
+        return '<div class="job-row" style="cursor:default;">' +
+          '<span class="logo" style="background:' + color(j.company) + ';">' + esc(initials(j.company)) + "</span>" +
+          '<div class="info"><h4>' + esc(j.title) + '</h4><div class="meta">' + esc(j.location || "—") + " · " + (j.applicants || 0) + " applicants · deadline " + esc(j.deadline || "—") + "</div></div>" +
+          '<span class="pill pill-good">published</span>' +
+          '<div class="row-actions"><button class="btn btn-ghost btn-sm" onclick="Proto.jobRowAction(\'Edit\')">Edit</button><button class="btn btn-ghost btn-sm" onclick="Proto.jobRowAction(\'Pause\')">Pause</button></div>' +
+        "</div>";
+      }).join("") + "</div>";
+  }
+
+  function renderCandidateDiscovery() {
+    var e = state.employer;
+    var pool = CANDIDATES.slice(e.deckIndex).filter(function (c) { return c.match >= e.minScore; });
+    var body;
+    if (!pool.length) {
+      body = '<div class="deck-empty"><div style="font-size:32px; margin-bottom:8px;">🎉</div>No more candidates match this filter.<br/><button class="btn btn-ghost" style="margin-top:14px;" onclick="Proto.resetCandidateDeck()">Restart demo deck</button></div>';
+    } else {
+      var top = pool[0];
+      var next = pool[1];
+      var animClass = state.cardAnim ? " " + state.cardAnim : "";
+      body = '<div class="deck">' + (next ? renderCandidateSwipeCard(next, "") : "") + renderCandidateSwipeCard(top, animClass) + "</div>" +
+        '<div class="swipe-actions">' +
+          '<button class="swipe-btn pass" onclick="Proto.swipeCandidate(\'left\')" aria-label="Pass">✕</button>' +
+          '<button class="swipe-btn like" onclick="Proto.swipeCandidate(\'right\')" aria-label="Like">♥</button>' +
+        "</div>";
+    }
+    return '<div class="deck-wrap">' +
+      '<div class="deck-meta">Showing ' + pool.length + " of " + CANDIDATES.length + ' candidates' +
+        '<select onchange="Proto.setMinScore(this.value)"><option value="0" ' + (e.minScore === 0 ? "selected" : "") + '>Any score</option><option value="60" ' + (e.minScore === 60 ? "selected" : "") + '>60%+</option><option value="80" ' + (e.minScore === 80 ? "selected" : "") + ">80%+</option></select>" +
+        '<button class="btn btn-ghost btn-sm" onclick="Proto.bulkDecline()">Bulk decline below 60%</button>' +
+      "</div>" + body + "</div>" +
+      (state.matchToast ? renderMatchToast() : "");
+  }
+
+  function renderCandidateSwipeCard(c, animClass) {
+    var col = personColor(c.name);
+    return '<div class="swipe-card' + animClass + '">' +
+      '<div class="card-band" style="background:' + col + ';"><span class="logo">' + esc(initials(c.name)) + "</span></div>" +
+      '<div class="card-body">' +
+        "<h3>" + esc(c.name) + "</h3>" +
+        '<div class="meta">' + esc(c.headline) + " · " + esc(c.location) + "</div>" +
+        '<span class="pill ' + (c.match >= 70 ? "pill-good" : "pill-info") + '">' + c.match + "% skills match</span>" +
+        '<div class="quote" style="margin-top:8px;">&ldquo;' + esc(c.quote) + '&rdquo;</div>' +
+        '<div class="tag-row">' + c.skills.map(function (t) { return '<span class="tag">' + esc(t) + "</span>"; }).join("") + "</div>" +
+        '<div class="resume-snip">' + esc(c.resumeSnippet) + "</div>" +
+      "</div>" +
+    "</div>";
+  }
+
+  function renderEmployerMatches() {
+    var e = state.employer;
+    if (!e.matches.length) return '<div class="page-head"><h1>Matches</h1></div><div class="empty-state">No mutual matches yet — like candidates in Find Candidates to see them here.</div>';
+    return '<div class="page-head"><h1>Matches</h1><p>Candidates who liked one of your jobs back.</p></div>' +
+      '<div class="match-list">' + e.matches.map(function (m) {
+        var c = candById(m.candId);
+        return '<div class="match-row" onclick="Proto.openEmployerThread(' + c.id + ')">' +
+          '<span class="logo" style="background:' + personColor(c.name) + ';">' + esc(initials(c.name)) + "</span>" +
+          '<div class="info"><h4>' + esc(c.name) + " — " + esc(c.headline) + '</h4><div class="preview">' + esc(m.lastMsg) + "</div></div>" +
+          '<div class="when">' + esc(m.when) + "</div>" +
+          (m.unread ? '<span class="unread-badge">' + m.unread + "</span>" : "") +
+        "</div>";
+      }).join("") + "</div>";
+  }
+
+  function renderEmployerMessages() {
+    var e = state.employer;
+    if (!e.matches.length) return '<div class="page-head"><h1>Messages</h1></div><div class="empty-state">No conversations yet — get a mutual match first.</div>';
+    var active = e.activeThread;
+    return '<div class="page-head"><h1>Messages</h1></div>' +
+      '<div class="messages-layout">' +
+        '<div class="conv-list">' + e.matches.map(function (m) {
+          var c = candById(m.candId);
+          return '<div class="conv-item ' + (active === c.id ? "active" : "") + '" onclick="Proto.openEmployerThread(' + c.id + ')">' +
+            '<span class="logo" style="background:' + personColor(c.name) + ';">' + esc(initials(c.name)) + "</span>" +
+            '<div class="info"><h5>' + esc(c.name) + '</h5><p>' + esc(m.lastMsg) + "</p></div>" +
+          "</div>";
+        }).join("") + "</div>" +
+        '<div class="thread">' + (active ? renderThreadBody(active, "employer") : '<div class="empty-thread">Select a conversation</div>') + "</div>" +
+      "</div>";
+  }
+
+  function renderThreadBody(id, roleNs) {
+    var ns = roleNs === "employer" ? state.employer : state.candidate;
+    var title = roleNs === "employer" ? candById(id).name : (byId(id).company + " — " + byId(id).title);
+    var msgs = ns.threads[id] || [];
+    return '<div class="thread-head">' + esc(title) + "</div>" +
+      '<div class="thread-body" id="thread-body">' +
+        msgs.map(function (m) { return '<div class="bubble ' + (m.from === "me" ? "me" : "them") + '">' + esc(m.text) + '<span class="time">' + esc(m.time) + "</span></div>"; }).join("") +
+        (state.typing ? '<div class="typing-indicator"><span></span><span></span><span></span></div>' : "") +
+      "</div>" +
+      '<div class="thread-input">' +
+        '<input type="text" id="msg-input" placeholder="Type a message…" onkeydown="if(event.key===\'Enter\')Proto.sendMessage(\'' + roleNs + '\')" />' +
+        '<button onclick="Proto.sendMessage(\'' + roleNs + '\')">Send</button>' +
+      "</div>";
+  }
+
+  function renderCompanySetup() {
+    return '<button class="back-link" onclick="Proto.go(\'dashboard\')">← Back to dashboard</button>' +
+      '<div class="page-head"><h1>Company setup</h1><p>This is what candidates see when they view your jobs.</p></div>' +
+      '<div class="card form-card">' +
+        '<div class="field"><label>Company name</label><input type="text" value="Northwind Analytics" /></div>' +
+        '<div class="field-row"><div class="field"><label>Industry</label><select><option>Data &amp; Analytics</option><option>SaaS</option><option>FinTech</option></select></div>' +
+        '<div class="field"><label>Company size</label><select><option>11–50</option><option>51–200</option><option>201–500</option></select></div></div>' +
+        '<div class="field"><label>Website</label><input type="text" value="https://northwindanalytics.demo" /></div>' +
+        '<div class="field"><label>About</label><textarea>We help enterprises turn raw data into decisions, with a small, senior engineering team.</textarea></div>' +
+        '<button class="btn btn-primary" style="width:auto;" onclick="Proto.saveCompany()">Save company profile</button>' +
+      "</div>";
+  }
+
+  function renderPostJob() {
+    return '<button class="back-link" onclick="Proto.go(\'jobs\')">← Back to jobs</button>' +
+      '<div class="page-head"><h1>Post a job</h1><p>Fill in the details candidates will see on this listing.</p></div>' +
+      '<div class="card form-card">' +
+        '<div class="field"><label>Job title</label><input type="text" id="pj-title" value="Staff Backend Engineer" /></div>' +
+        '<div class="field"><label>Description</label><textarea>Own our core matching service, working closely with data and platform teams.</textarea></div>' +
+        '<div class="field-row"><div class="field"><label>Location</label><input type="text" value="Bengaluru" /></div>' +
+        '<div class="field"><label>Remote policy</label><select><option>Hybrid</option><option>Remote</option><option>Onsite</option></select></div></div>' +
+        '<div class="field-row"><div class="field"><label>Employment type</label><select><option>Full-time</option><option>Contract</option></select></div>' +
+        '<div class="field"><label>Salary range</label><input type="text" value="₹35L – ₹48L" /></div></div>' +
+        '<div class="field"><label>Required skills</label><input type="text" value="Python, PostgreSQL, Kubernetes" /></div>' +
+        '<div class="field"><label>Application deadline</label><input type="date" value="2026-09-01" /></div>' +
+        '<button class="btn btn-primary" style="width:auto;" onclick="Proto.publishJob()">Publish job</button>' +
+      "</div>";
+  }
+
+  // ===================== ADMIN SCREENS =====================
+
+  function statusPill(s) {
+    if (s === "approved") return '<span class="pill pill-good">approved</span>';
+    if (s === "rejected") return '<span class="pill pill-bad">rejected</span>';
+    return '<span class="pill pill-warn">pending</span>';
+  }
+
+  function renderAdminCompanies() {
+    var a = state.admin;
+    var filtered = a.companies.filter(function (c) { return a.companyTab === "all" || c.status === a.companyTab; });
+    var selectedCount = Object.keys(a.selected).filter(function (k) { return a.selected[k]; }).length;
+    return '<div class="page-head"><h1>Company verification</h1><p>' + filtered.length + " companies in this view</p></div>" +
+      '<div class="admin-toolbar">' +
+        '<button class="subtab-btn ' + (a.companyTab === "pending" ? "active" : "") + '" onclick="Proto.setCompanyTab(\'pending\')">Pending</button>' +
+        '<button class="subtab-btn ' + (a.companyTab === "approved" ? "active" : "") + '" onclick="Proto.setCompanyTab(\'approved\')">Approved</button>' +
+        '<button class="subtab-btn ' + (a.companyTab === "rejected" ? "active" : "") + '" onclick="Proto.setCompanyTab(\'rejected\')">Rejected</button>' +
+        '<button class="subtab-btn ' + (a.companyTab === "all" ? "active" : "") + '" onclick="Proto.setCompanyTab(\'all\')">All</button>' +
+        (selectedCount ? '<span style="margin-left:auto; display:flex; gap:8px; align-items:center;"><span style="font-size:12.5px; color:var(--ink-soft);">' + selectedCount + " selected</span><button class=\"btn btn-primary btn-sm\" onclick=\"Proto.bulkCompanyAction('approved')\">Approve selected</button><button class=\"btn btn-danger-outline btn-sm\" onclick=\"Proto.bulkCompanyAction('rejected')\">Reject selected</button></span>" : "") +
+      "</div>" +
+      '<div class="table-scroll"><table class="admin-table"><thead><tr><th></th><th>Company</th><th>Owner</th><th>Industry</th><th>Status</th><th>Created</th><th></th></tr></thead><tbody>' +
+        filtered.map(function (c) {
+          return "<tr><td><input type=\"checkbox\" " + (a.selected[c.id] ? "checked" : "") + ' onchange="Proto.toggleCompanySelect(' + c.id + ')" /></td>' +
+            '<td class="co-name">' + esc(c.name) + "</td><td class=\"co-owner\">" + esc(c.owner) + "</td><td>" + esc(c.industry) + "</td><td>" + statusPill(c.status) + "</td><td>" + esc(c.created) + '</td>' +
+            '<td><div class="table-actions"><button class="btn btn-ghost btn-sm" onclick="Proto.companyAction(' + c.id + ', \'approved\')">Approve</button><button class="btn btn-ghost btn-sm" onclick="Proto.companyAction(' + c.id + ', \'rejected\')">Reject</button></div></td></tr>';
+        }).join("") +
+      "</tbody></table></div>";
+  }
+
+  function renderAdminDlq() {
+    var a = state.admin;
+    if (!a.dlq.length) return '<div class="page-head"><h1>Resume parsing failures</h1></div><div class="empty-state">No failed parses right now — the queue is clean.</div>';
+    return '<div class="page-head"><h1>Resume parsing failures</h1><p>' + a.dlq.length + ' resumes need manual attention.</p></div>' +
+      '<div class="table-scroll"><table class="admin-table"><thead><tr><th>File</th><th>Candidate</th><th>Error</th><th>Attempts</th><th>Failed</th><th></th></tr></thead><tbody>' +
+        a.dlq.map(function (d) {
+          return "<tr><td class=\"co-name\">" + esc(d.filename) + "</td><td class=\"co-owner\">" + esc(d.candidate) + "</td><td>" + esc(d.error) + "</td><td>" + d.attempts + "</td><td>" + esc(d.when) + '</td>' +
+            '<td><div class="table-actions"><button class="btn btn-ghost btn-sm" onclick="Proto.dlqAction(' + d.id + ', \'retry\')">Retry</button><button class="btn btn-ghost btn-sm" onclick="Proto.dlqAction(' + d.id + ', \'dismiss\')">Dismiss</button></div></td></tr>';
+        }).join("") +
+      "</tbody></table></div>";
+  }
+
+  // ===================== RENDER DISPATCH =====================
+
+  function render() {
+    var app = document.getElementById("app");
+    if (state.screen === "home") { app.innerHTML = renderHome(); return; }
+    if (state.screen === "login") { app.innerHTML = renderLogin(); return; }
+    if (state.screen === "register") { app.innerHTML = renderRegister(); return; }
+    if (state.screen === "forgot") { app.innerHTML = renderForgot(); return; }
+
+    var body = "";
+    if (state.screen === "notifications") body = renderNotifications();
+    else if (state.role === "candidate") {
+      if (state.screen === "dashboard") body = renderCandidateDashboard();
+      else if (state.screen === "profile") body = renderCandidateProfile();
+      else if (state.screen === "jobs") body = renderJobs();
+      else if (state.screen === "matches") body = renderCandidateMatches();
+      else if (state.screen === "messages") body = renderCandidateMessages();
+    } else if (state.role === "employer") {
+      if (state.screen === "dashboard") body = renderEmployerDashboard();
+      else if (state.screen === "jobs") body = renderEmployerJobsPage();
+      else if (state.screen === "post-job") body = renderPostJob();
+      else if (state.screen === "company-setup") body = renderCompanySetup();
+      else if (state.screen === "matches") body = renderEmployerMatches();
+      else if (state.screen === "messages") body = renderEmployerMessages();
+    } else if (state.role === "admin") {
+      if (state.screen === "admin-companies") body = renderAdminCompanies();
+      else if (state.screen === "admin-dlq") body = renderAdminDlq();
+    }
+    app.innerHTML = renderTopbar() + "<main>" + body + "</main>" + renderJobModal() + renderToast();
+    var tb = document.getElementById("thread-body");
+    if (tb) tb.scrollTop = tb.scrollHeight;
+  }
+
+  function renderToast() {
+    return state.toastMsg ? '<div class="toast-mini">' + esc(state.toastMsg) + "</div>" : "";
+  }
+
+  // ===================== ACTIONS =====================
+
+  var Proto = {
+    setRole: function (r) { state.loginRole = r; render(); },
+    togglePw: function () {
+      var el = document.getElementById("pw-input");
+      var btn = event.target;
+      if (el.type === "password") { el.type = "text"; btn.textContent = "Hide"; }
+      else { el.type = "password"; btn.textContent = "Show"; }
+    },
+    login: function () {
+      state.loggingIn = true; render();
+      setTimeout(function () {
+        state.loggingIn = false;
+        state.role = state.loginRole;
+        state.screen = state.role === "admin" ? "admin-companies" : "dashboard";
+        render();
+      }, 650);
+    },
+    register: function () {
+      state.registerSubmitted = true; render();
+      setTimeout(function () {
+        state.registerSubmitted = false;
+        state.role = state.loginRole;
+        state.screen = "dashboard";
+        render();
+      }, 900);
+    },
+    forgotSubmit: function () { state.forgotSubmitted = true; render(); },
+    logout: function () {
+      var loginRole = state.loginRole;
+      state = freshState();
+      state.loginRole = loginRole;
+      state.screen = "login";
+      render();
+    },
+    go: function (screen) { state.screen = screen; state.menuOpen = false; render(); },
+    toggleMenu: function () { state.menuOpen = !state.menuOpen; render(); },
+
+    setJobsTab: function (t) { state.candidate.jobsSubtab = t; render(); },
+    resetDeck: function () { state.candidate.deckIndex = 0; render(); },
+    swipeJob: function (dir) {
+      var c = state.candidate;
+      var remaining = JOBS.slice(c.deckIndex);
+      if (!remaining.length) return;
+      var job = remaining[0];
+      state.cardAnim = dir === "right" ? "leave-right" : "leave-left";
+      render();
+      setTimeout(function () {
+        state.cardAnim = null;
+        c.deckIndex += 1;
+        if (dir === "right" && job.isMatch && !c.matches.some(function (m) { return m.jobId === job.id; })) {
+          c.matches.push({ jobId: job.id, unread: 1, lastMsg: "Hi Priya! Thanks for your interest — let's chat.", when: "Just now" });
+          c.threads[job.id] = [{ from: "them", text: "Hi Priya! Thanks for your interest — let's chat.", time: "Just now" }];
+          state.matchToast = job;
+        }
+        render();
+      }, 320);
+    },
+    dismissMatch: function () { state.matchToast = null; render(); },
+    goToMatch: function (id) {
+      state.matchToast = null;
+      state.screen = "messages";
+      if (state.role === "candidate") {
+        state.candidate.activeThread = id;
+        var m = state.candidate.matches.filter(function (m) { return m.jobId === id; })[0];
+        if (m) m.unread = 0;
+      } else {
+        state.employer.activeThread = id;
+        var m2 = state.employer.matches.filter(function (m) { return m.candId === id; })[0];
+        if (m2) m2.unread = 0;
+      }
+      render();
+    },
+    setSearch: function (v) { state.candidate.search = v; render(); },
+    setFilter: function (key, v) {
+      if (key === "location") state.candidate.filterLocation = v;
+      if (key === "remote") state.candidate.filterRemote = v;
+      render();
+    },
+    openJob: function (id) { state.modalJob = byId(id); render(); },
+    closeJob: function () { state.modalJob = null; render(); },
+    applyJob: function () { state.modalJob = null; render(); showToast("Application sent (prototype) ✓"); },
+    openThread: function (jobId) {
+      state.screen = "messages";
+      state.candidate.activeThread = jobId;
+      var m = state.candidate.matches.filter(function (m) { return m.jobId === jobId; })[0];
+      if (m) m.unread = 0;
+      render();
+    },
+    sendMessage: function (roleNs) {
+      var input = document.getElementById("msg-input");
+      var text = input && input.value.trim();
+      var ns = roleNs === "employer" ? state.employer : state.candidate;
+      var id = ns.activeThread;
+      if (!text || !id) return;
+      ns.threads[id].push({ from: "me", text: text, time: "Just now" });
+      var m = ns.matches.filter(function (m) { return (roleNs === "employer" ? m.candId : m.jobId) === id; })[0];
+      if (m) m.lastMsg = "You: " + text;
+      render();
+      state.typing = true; render();
+      setTimeout(function () {
+        state.typing = false;
+        var replies = ["Thanks for the update — I'll follow up shortly!", "Got it, appreciate you sharing that.", "That works well on our end."];
+        var reply = replies[Math.floor(Math.random() * replies.length)];
+        ns.threads[id].push({ from: "them", text: reply, time: "Just now" });
+        if (m) m.lastMsg = reply;
+        render();
+      }, 1100);
+    },
+
+    editProfile: function () { showToast("Edit profile saved (prototype) ✓"); },
+    exportData: function () { showToast("Preparing export… downloading (prototype) ✓"); },
+    addSection: function (kind) { showToast("Add " + kind + " form opened (prototype)"); },
+    uploadResume: function () {
+      var c = state.candidate;
+      c.resumeState = "parsing"; render();
+      setTimeout(function () { c.resumeState = "parsed"; render(); showToast("Resume parsed ✓"); }, 1300);
+    },
+    addToProfile: function (kind, line) {
+      var c = state.candidate;
+      if (kind === "skill" && c.addedSkills.indexOf(line) === -1) { c.addedSkills.push(line); c.skills.push(line); }
+      if (kind === "experience" && c.addedExperience.indexOf(line) === -1) { c.addedExperience.push(line); c.experience.push(line); }
+      if (kind === "education" && c.addedEducation.indexOf(line) === -1) { c.addedEducation.push(line); c.education.push(line); }
+      if (kind === "certification" && c.addedCertifications.indexOf(line) === -1) { c.addedCertifications.push(line); c.certifications.push(line); }
+      render();
+      showToast((kind.charAt(0).toUpperCase() + kind.slice(1)) + " added ✓");
+    },
+
+    reviewCandidates: function () { state.employer.jobsSubtab = "find"; state.screen = "jobs"; render(); },
+    setEmployerJobsTab: function (t) { state.employer.jobsSubtab = t; render(); },
+    jobRowAction: function (label) { showToast(label + " — prototype only"); },
+    saveCompany: function () { showToast("Company profile saved ✓"); state.screen = "dashboard"; render(); },
+    publishJob: function () {
+      var e = state.employer;
+      var titleEl = document.getElementById("pj-title");
+      var title = (titleEl && titleEl.value.trim()) || "New role";
+      e.companyJobs.push({ id: e.nextJobId++, title: title, company: "Northwind Analytics", location: "Bengaluru", applicants: 0, deadline: "2026-09-01" });
+      state.employer.jobsSubtab = "manage";
+      state.screen = "jobs";
+      render();
+      showToast("Job published ✓");
+    },
+    setMinScore: function (v) { state.employer.minScore = parseInt(v, 10); render(); },
+    resetCandidateDeck: function () { state.employer.deckIndex = 0; render(); },
+    swipeCandidate: function (dir) {
+      var e = state.employer;
+      var pool = CANDIDATES.slice(e.deckIndex).filter(function (c) { return c.match >= e.minScore; });
+      if (!pool.length) return;
+      var cand = pool[0];
+      var idx = CANDIDATES.indexOf(cand);
+      state.cardAnim = dir === "right" ? "leave-right" : "leave-left";
+      render();
+      setTimeout(function () {
+        state.cardAnim = null;
+        e.deckIndex = idx + 1;
+        if (dir === "right" && cand.isMatch && !e.matches.some(function (m) { return m.candId === cand.id; })) {
+          e.matches.push({ candId: cand.id, unread: 1, lastMsg: "Hi! Thanks for the opportunity — happy to chat this week.", when: "Just now" });
+          e.threads[cand.id] = [{ from: "them", text: "Hi! Thanks for the opportunity — happy to chat this week.", time: "Just now" }];
+          state.matchToast = cand;
+        }
+        render();
+      }, 320);
+    },
+    bulkDecline: function () {
+      var e = state.employer;
+      var before = CANDIDATES.slice(e.deckIndex).filter(function (c) { return c.match >= e.minScore; }).length;
+      var kept = CANDIDATES.slice(e.deckIndex).filter(function (c) { return c.match >= 60; });
+      var removed = before - kept.filter(function (c) { return c.match >= e.minScore; }).length;
+      e.deckIndex = CANDIDATES.indexOf(kept[0] || CANDIDATES[CANDIDATES.length - 1]);
+      if (!kept.length) e.deckIndex = CANDIDATES.length;
+      render();
+      showToast("Declined candidates below 60% match (prototype) ✓");
+    },
+    openEmployerThread: function (candId) {
+      state.screen = "messages";
+      state.employer.activeThread = candId;
+      var m = state.employer.matches.filter(function (m) { return m.candId === candId; })[0];
+      if (m) m.unread = 0;
+      render();
+    },
+
+    setCompanyTab: function (t) { state.admin.companyTab = t; render(); },
+    toggleCompanySelect: function (id) { state.admin.selected[id] = !state.admin.selected[id]; render(); },
+    companyAction: function (id, status) {
+      var co = state.admin.companies.filter(function (c) { return c.id === id; })[0];
+      if (co) co.status = status;
+      render();
+      showToast((status === "approved" ? "Approved " : "Rejected ") + (co ? co.name : "") + " ✓");
+    },
+    bulkCompanyAction: function (status) {
+      var a = state.admin;
+      var count = 0;
+      a.companies.forEach(function (c) { if (a.selected[c.id]) { c.status = status; count++; } });
+      a.selected = {};
+      render();
+      showToast((status === "approved" ? "Approved " : "Rejected ") + count + " companies ✓");
+    },
+    dlqAction: function (id, action) {
+      var a = state.admin;
+      a.dlq = a.dlq.filter(function (d) { return d.id !== id; });
+      render();
+      showToast(action === "retry" ? "Retry queued ✓" : "Entry dismissed ✓");
+    },
+  };
+
+  window.Proto = Proto;
+  document.addEventListener("keydown", function (e) {
+    if (e.key === "Escape") { state.modalJob = null; state.matchToast = null; state.menuOpen = false; render(); }
+  });
+  render();
+})();
+</script>
+</body>
+</html>
