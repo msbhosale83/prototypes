@@ -1,0 +1,971 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Operations Monitoring — Capacity Planning</title>
+<style>
+:root{
+  --plane:#f9f9f7; --surface:#fcfcfb; --surface-2:#f2f1ec;
+  --ink:#0b0b0b; --ink-2:#52514e; --muted:#898781;
+  --hair:#e1e0d9; --border:rgba(11,11,11,0.10);
+  --accent:#2a78d6; --accent-ink:#ffffff; --accent-soft:#e7f0fc;
+  --ai:#4a3aa7; --ai-soft:#efeaff; --ai-ink:#ffffff;
+  --good:#0ca30c; --warning:#fab219; --serious:#ec835a; --critical:#d03b3b; --warning-ink:#8a5a00;
+  --good-soft:#e4f5e2; --warning-soft:#fff3d9; --serious-soft:#fde7dd; --critical-soft:#fbe3e3;
+  --font: system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: ui-monospace, "Cascadia Code", "SFMono-Regular", Consolas, monospace;
+  --shadow: 0 1px 2px rgba(11,11,11,0.04), 0 4px 16px rgba(11,11,11,0.06);
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --plane:#0d0d0d; --surface:#1a1a19; --surface-2:#232320;
+    --ink:#ffffff; --ink-2:#c3c2b7; --muted:#898781;
+    --hair:#2c2c2a; --border:rgba(255,255,255,0.10);
+    --accent:#3987e5; --accent-ink:#ffffff; --accent-soft:#173154;
+    --ai:#9085e9; --ai-soft:#241f47; --ai-ink:#0d0d0d;
+    --good:#0ca30c; --warning:#fab219; --serious:#ec835a; --critical:#e66767; --warning-ink:#fab219;
+    --good-soft:#0f2a10; --warning-soft:#3a2c08; --serious-soft:#3a2013; --critical-soft:#3a1414;
+    --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 8px 24px rgba(0,0,0,0.35);
+  }
+}
+:root[data-theme="dark"]{
+  --plane:#0d0d0d; --surface:#1a1a19; --surface-2:#232320;
+  --ink:#ffffff; --ink-2:#c3c2b7; --muted:#898781;
+  --hair:#2c2c2a; --border:rgba(255,255,255,0.10);
+  --accent:#3987e5; --accent-ink:#ffffff; --accent-soft:#173154;
+  --ai:#9085e9; --ai-soft:#241f47; --ai-ink:#0d0d0d;
+  --good:#0ca30c; --warning:#fab219; --serious:#ec835a; --critical:#e66767; --warning-ink:#fab219;
+  --good-soft:#0f2a10; --warning-soft:#3a2c08; --serious-soft:#3a2013; --critical-soft:#3a1414;
+}
+:root[data-theme="light"]{
+  --plane:#f9f9f7; --surface:#fcfcfb; --surface-2:#f2f1ec;
+  --ink:#0b0b0b; --ink-2:#52514e; --muted:#898781;
+  --hair:#e1e0d9; --border:rgba(11,11,11,0.10);
+  --accent:#2a78d6; --accent-ink:#ffffff; --accent-soft:#e7f0fc;
+  --ai:#4a3aa7; --ai-soft:#efeaff; --ai-ink:#ffffff;
+  --good:#0ca30c; --warning:#fab219; --serious:#ec835a; --critical:#d03b3b; --warning-ink:#8a5a00;
+  --good-soft:#e4f5e2; --warning-soft:#fff3d9; --serious-soft:#fde7dd; --critical-soft:#fbe3e3;
+}
+*{box-sizing:border-box;}
+body{margin:0;}
+.app{ font-family:var(--font); background:var(--plane); color:var(--ink); min-height:100vh; padding:28px clamp(16px,4vw,40px) 80px; }
+.wrap{max-width:1280px; margin:0 auto;}
+h1,h2,h3,h4{text-wrap:balance; margin:0;}
+button{font-family:inherit; cursor:pointer;}
+button:focus-visible, [tabindex]:focus-visible, input:focus-visible, select:focus-visible{ outline:2px solid var(--accent); outline-offset:2px; }
+::-webkit-scrollbar{height:10px; width:10px;}
+::-webkit-scrollbar-thumb{background:var(--hair); border-radius:8px;}
+
+.page-head{margin-bottom:18px;}
+.page-head h1{font-size:23px; font-weight:700; letter-spacing:-0.01em;}
+.page-head p{font-size:13.5px; color:var(--ink-2); margin-top:4px;}
+
+.btn{
+  display:inline-flex; align-items:center; gap:8px; border-radius:9px; border:1px solid var(--border);
+  padding:9px 15px; font-size:13px; font-weight:600; background:var(--surface); color:var(--ink);
+  transition:transform .1s, background .15s;
+}
+.btn:hover{transform:translateY(-1px);}
+.btn:active{transform:translateY(0);}
+.btn.primary{background:var(--accent); color:var(--accent-ink); border-color:transparent;}
+.btn.ai{background:var(--ai); color:var(--ai-ink); border-color:transparent;}
+.btn.ghost{background:transparent;}
+.btn.small{padding:6px 11px; font-size:12px;}
+.btn[disabled]{opacity:.45; cursor:not-allowed; transform:none;}
+.btn svg{width:14px; height:14px; flex:none;}
+.spin{animation:spin 1s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+@media (prefers-reduced-motion: reduce){.spin{animation-duration:3s;}}
+
+.tabcard{background:var(--surface); border:1px solid var(--hair); border-radius:16px; overflow:hidden; box-shadow:var(--shadow);}
+.toptabs{display:flex; gap:4px; padding:0 20px; border-bottom:1px solid var(--hair);}
+.toptab{border:none; background:none; color:var(--ink-2); font-size:13.5px; font-weight:700; letter-spacing:.02em; padding:16px 6px; display:flex; align-items:center; gap:8px; border-bottom:2px solid transparent; margin-right:26px;}
+.toptab svg{width:17px; height:17px;}
+.toptab.active{color:var(--accent); border-color:var(--accent);}
+.tabcard-body{padding:22px 24px 26px;}
+
+.domain-head h2{font-size:19px; font-weight:700;}
+.domain-head p{font-size:13px; color:var(--ink-2); margin-top:3px; margin-bottom:18px;}
+
+.filter-panel{background:var(--surface-2); border:1px solid var(--hair); border-radius:12px; padding:16px 18px; margin-bottom:18px;}
+.filter-row{display:flex; gap:14px; flex-wrap:wrap; align-items:flex-end;}
+.filter-field{display:flex; flex-direction:column; gap:6px; min-width:160px;}
+.filter-field label{font-size:11px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:.04em;}
+.filter-field select{padding:9px 10px; border-radius:8px; border:1px solid var(--hair); background:var(--surface); color:var(--ink); font-size:13px; min-width:160px;}
+.filter-actions{display:flex; gap:10px; align-items:center; margin-left:auto;}
+.selected-tag{font-size:12.5px; color:var(--ink-2);}
+.selected-tag b{color:var(--ink); font-family:var(--mono); font-weight:600;}
+
+.content-grid{display:grid; grid-template-columns:300px 1fr; gap:18px; align-items:start;}
+@media (max-width:880px){.content-grid{grid-template-columns:1fr;}}
+.panel{background:var(--surface); border:1px solid var(--hair); border-radius:14px; padding:18px;}
+.panel h3{font-size:14.5px; font-weight:700;}
+.panel .sub{font-size:12px; color:var(--muted); margin-top:2px; margin-bottom:14px;}
+
+.spec-card{border:1px solid var(--hair); border-radius:10px; padding:12px 14px; margin-bottom:12px; background:var(--surface-2);}
+.spec-card h4{font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.04em; color:var(--muted); margin-bottom:8px;}
+.spec-row{display:flex; align-items:center; justify-content:space-between; padding:4px 0; font-size:12.5px;}
+.spec-row .k{color:var(--ink-2);}
+.spec-row .v{color:var(--ink); font-weight:600; font-family:var(--mono);}
+
+.headroom-box{border:1px solid var(--hair); border-radius:10px; padding:12px 14px; background:var(--surface-2);}
+.headroom-box h4{font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.04em; color:var(--muted); margin-bottom:10px;}
+.meter{height:9px; border-radius:99px; overflow:hidden; background:var(--hair); margin-bottom:9px;}
+.meter-fill{height:100%; border-radius:99px;}
+.headroom-line{display:flex; align-items:center; gap:7px; font-size:12.5px; font-weight:600;}
+.headroom-line svg{width:14px; height:14px; flex:none;}
+
+.subtabs2{display:flex; gap:4px; border-bottom:1px solid var(--hair); margin-bottom:16px;}
+.subtab2{border:none; background:none; color:var(--ink-2); font-size:12.5px; font-weight:700; letter-spacing:.02em; padding:10px 4px; display:flex; align-items:center; gap:7px; border-bottom:2px solid transparent; margin-right:22px;}
+.subtab2 svg{width:15px; height:15px;}
+.subtab2.active{color:var(--accent); border-color:var(--accent);}
+
+.section-title{font-size:14px; font-weight:700; margin-bottom:2px;}
+.section-note{font-size:12px; color:var(--muted); margin-bottom:14px;}
+
+.stat-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(190px,1fr)); gap:12px;}
+.stat-tile{border:1px solid var(--hair); border-radius:11px; background:var(--surface-2); padding:13px 14px;}
+.stat-tile .l{font-size:11.5px; color:var(--muted); font-weight:600; display:flex; align-items:center; justify-content:space-between;}
+.stat-tile .row{display:flex; align-items:flex-end; justify-content:space-between; gap:8px; margin-top:6px;}
+.stat-tile .v{font-size:22px; font-weight:700; font-variant-numeric:tabular-nums;}
+.stat-tile .v.s-critical{color:var(--critical);} .stat-tile .v.s-warning{color:var(--warning-ink);} .stat-tile .v.s-serious{color:var(--serious);} .stat-tile .v.s-good{color:var(--ink);}
+.stat-tile .delta{font-size:11px; font-weight:700; display:flex; align-items:center; gap:2px;}
+.stat-tile .delta.up{color:var(--critical);} .stat-tile .delta.down{color:var(--good);} .stat-tile .delta.flat{color:var(--muted);}
+.stat-tile .mini{width:64px; height:24px; flex:none;}
+
+.trend-toolbar{display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-bottom:14px;}
+.metric-seg{display:flex; border:1px solid var(--hair); border-radius:9px; overflow:hidden;}
+.metric-seg button{border:none; background:var(--surface-2); color:var(--ink-2); font-size:12px; font-weight:700; padding:8px 14px;}
+.metric-seg button.active{background:var(--accent); color:#fff;}
+
+.chart-card{border:1px solid var(--hair); border-radius:12px; padding:16px 16px 8px; background:var(--surface-2);}
+.chart-legend{display:flex; gap:18px; flex-wrap:wrap; margin-bottom:8px;}
+.legend-item{display:flex; align-items:center; gap:7px; font-size:12px; color:var(--ink-2); font-weight:600;}
+.legend-key{width:16px; height:0; border-top:2.5px solid; flex:none;}
+.legend-key.dashed{border-top-style:dashed;}
+.chart-wrap{position:relative;}
+.chart-tooltip{
+  position:absolute; pointer-events:none; background:var(--ink); color:var(--plane); border-radius:8px; padding:7px 10px;
+  font-size:11.5px; box-shadow:var(--shadow); opacity:0; transform:translate(-50%,-100%); transition:opacity .1s; white-space:nowrap; z-index:2;
+}
+.chart-tooltip.show{opacity:1;}
+.chart-tooltip .tt-label{color:var(--muted); font-size:10.5px; margin-bottom:2px;}
+.chart-tooltip .tt-val{font-weight:700;}
+.forecast-note{display:flex; align-items:center; gap:8px; font-size:11.5px; color:var(--muted); padding:8px 2px 4px;}
+.forecast-note svg{width:13px; height:13px; flex:none;}
+
+.headroom-line.s-good{color:var(--good);} .headroom-line.s-warning{color:var(--warning-ink);} .headroom-line.s-critical{color:var(--critical);}
+
+/* ---------- AI Drawer (shared component) ---------- */
+.overlay{position:fixed; inset:0; background:rgba(11,11,11,.42); z-index:40; opacity:0; pointer-events:none; transition:opacity .2s;}
+.overlay.show{opacity:1; pointer-events:auto;}
+.drawer{
+  position:fixed; top:0; right:0; height:100%; width:min(460px,92vw); background:var(--surface);
+  border-left:1px solid var(--hair); z-index:41; transform:translateX(100%); transition:transform .26s ease;
+  display:flex; flex-direction:column; box-shadow:-8px 0 30px rgba(0,0,0,.15);
+}
+.drawer.show{transform:translateX(0);}
+.drawer-head{display:flex; align-items:flex-start; justify-content:space-between; gap:10px; padding:20px 20px 14px; border-bottom:1px solid var(--hair);}
+.drawer-head .ai-tag{display:flex; align-items:center; gap:7px; color:var(--ai); font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:.05em;}
+.drawer-head .ai-tag svg{width:15px; height:15px;}
+.drawer-head h3{font-size:17px; font-weight:700; margin-top:4px;}
+.drawer-head .sub{font-size:12px; color:var(--muted); margin-top:2px;}
+.drawer-close{border:none; background:var(--surface-2); width:28px; height:28px; border-radius:8px; display:flex; align-items:center; justify-content:center; color:var(--ink-2); flex:none;}
+.drawer-body{flex:1; overflow-y:auto; padding:18px 20px 24px;}
+
+.scan-list{display:flex; flex-direction:column; gap:10px; margin:6px 0 18px;}
+.scan-item{display:flex; align-items:center; gap:11px; padding:10px 12px; border:1px solid var(--hair); border-radius:10px; background:var(--surface-2); opacity:0; transform:translateY(4px); transition:opacity .3s, transform .3s;}
+.scan-item.show{opacity:1; transform:translateY(0);}
+.scan-icon{width:26px; height:26px; border-radius:7px; display:flex; align-items:center; justify-content:center; flex:none; background:var(--surface); color:var(--muted); border:1px solid var(--hair);}
+.scan-item.done .scan-icon{background:var(--good-soft); color:var(--good); border-color:transparent;}
+.scan-item.flag .scan-icon{background:var(--critical-soft); color:var(--critical); border-color:transparent;}
+.scan-icon svg{width:14px; height:14px;}
+.scan-text{display:flex; flex-direction:column; gap:1px; min-width:0;}
+.scan-text .n{font-size:13px; font-weight:700;}
+.scan-text .d{font-size:11.5px; color:var(--ink-2); font-family:var(--mono);}
+.stage-label{font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:.05em; color:var(--muted); margin-bottom:10px; display:flex; align-items:center; gap:8px;}
+.stage-label svg{width:14px; height:14px;}
+
+.result-card{border:1px solid var(--hair); border-radius:12px; padding:16px; margin-bottom:14px; background:var(--surface-2);}
+.result-card h4{font-size:12px; text-transform:uppercase; letter-spacing:.05em; color:var(--muted); margin-bottom:8px; display:flex; align-items:center; gap:7px;}
+.confidence-row{display:flex; align-items:center; gap:10px; margin-bottom:12px;}
+.confidence-bar{flex:1; height:7px; background:var(--hair); border-radius:99px; overflow:hidden;}
+.confidence-fill{height:100%; background:var(--ai); border-radius:99px;}
+.confidence-num{font-size:13px; font-weight:700; color:var(--ai); font-variant-numeric:tabular-nums;}
+.root-cause-text{font-size:14px; line-height:1.55; color:var(--ink);}
+.evidence-item{display:flex; gap:10px; padding:9px 0; border-bottom:1px dashed var(--hair);}
+.evidence-item:last-child{border-bottom:none;}
+.evidence-time{font-family:var(--mono); font-size:11px; color:var(--muted); flex:none; width:52px; padding-top:1px;}
+.evidence-text{font-size:12.8px; color:var(--ink-2); line-height:1.45;}
+.evidence-text b{color:var(--ink);}
+.action-item{display:flex; gap:10px; align-items:flex-start; padding:8px 0;}
+.action-check{width:18px; height:18px; border-radius:5px; border:1.5px solid var(--ai); flex:none; margin-top:1px; display:flex; align-items:center; justify-content:center; color:var(--ai);}
+.action-check svg{width:12px; height:12px;}
+.action-text{font-size:13px; color:var(--ink); line-height:1.4;}
+.drawer-footer{display:flex; gap:10px; padding:14px 20px 20px; border-top:1px solid var(--hair);}
+.drawer-footer .btn{flex:1; justify-content:center;}
+.toast{
+  position:fixed; bottom:26px; left:50%; transform:translateX(-50%) translateY(20px); background:var(--ink); color:var(--plane);
+  padding:12px 20px; border-radius:10px; font-size:13px; font-weight:600; z-index:60; opacity:0; transition:opacity .25s, transform .25s;
+  display:flex; align-items:center; gap:8px; pointer-events:none; box-shadow:var(--shadow);
+}
+.toast.show{opacity:1; transform:translateX(-50%) translateY(0);}
+.toast svg{width:15px; height:15px; color:var(--good);}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="wrap" id="root"></div>
+</div>
+<div class="overlay" id="overlay" onclick="closeDrawer()"></div>
+<div class="drawer" id="drawer"></div>
+<div class="toast" id="toast"></div>
+<script>
+/* ================= Icons ================= */
+function ic(name){
+  const s = 'width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"';
+  const P = {
+    compute:'<rect x="3" y="4" width="18" height="12" rx="1.5"/><path d="M8 20h8"/><path d="M12 16v4"/>',
+    database:'<ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5"/><path d="M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/>',
+    bars:'<path d="M5 20V10"/><path d="M12 20V4"/><path d="M19 20v-7"/>',
+    trend:'<path d="M3 17l6-6 4 4 8-9"/><path d="M15 6h6v6"/>',
+    refresh:'<path d="M3 12a9 9 0 0 1 15.3-6.4L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-15.3 6.4L3 16"/><path d="M3 21v-5h5"/>',
+    sparkle:'<path d="M12 2l1.8 5.4L19 9l-5.2 1.6L12 16l-1.8-5.4L5 9l5.2-1.6z"/><path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z"/>',
+    check:'<path d="M20 6L9 17l-5-5"/>',
+    warn:'<path d="M12 3l10 18H2z"/><path d="M12 10v4"/><path d="M12 17h.01"/>',
+    critx:'<circle cx="12" cy="12" r="9"/><path d="M15 9l-6 6"/><path d="M9 9l6 6"/>',
+    close:'<path d="M18 6L6 18"/><path d="M6 6l12 12"/>',
+    clock:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/>',
+    info:'<circle cx="12" cy="12" r="9"/><path d="M12 8h.01"/><path d="M11 11h1v5h1"/>',
+    up:'<path d="M12 19V5"/><path d="M6 11l6-6 6 6"/>',
+    down:'<path d="M12 5v14"/><path d="M6 13l6 6 6-6"/>',
+    flat:'<path d="M5 12h14"/>',
+  };
+  return `<svg ${s}>${P[name]||''}</svg>`;
+}
+
+/* ================= Seeded RNG ================= */
+function hash(str){ let h=1779033703^str.length; for(let i=0;i<str.length;i++){ h=Math.imul(h^str.charCodeAt(i),3432918353); h=h<<13|h>>>19; } return ()=>{ h=Math.imul(h^(h>>>16),2246822507); h=Math.imul(h^(h>>>13),3266489909); h^=h>>>16; return (h>>>0)/4294967296; }; }
+function seeded(str){ const r=hash(str); return ()=>r(); }
+
+/* ================= Reference data ================= */
+const PRODUCTS = [
+  {id:'PRD-1042', name:'Payment Gateway'},
+  {id:'PRD-2071', name:'Auth Service'},
+  {id:'PRD-3310', name:'Order Management'},
+  {id:'PRD-4187', name:'Inventory Service'},
+  {id:'PRD-5029', name:'Search Service'},
+  {id:'PRD-6654', name:'Customer Portal'},
+  {id:'PRD-7203', name:'Notification Service'},
+  {id:'PRD-8890', name:'Analytics Pipeline'},
+];
+function productName(id){ const p=PRODUCTS.find(p=>p.id===id); return p?p.name:id; }
+
+const DURATIONS = ['Last Hour','Last Day','Last 7 Days','Last 30 Days'];
+
+const HOST_INVENTORY = [
+  {id:'WIN-SQL-01', type:'Windows', product:'PRD-1042', env:'Production'},
+  {id:'WIN-SQL-02', type:'Windows', product:'PRD-1042', env:'Production'},
+  {id:'WIN-APP-03', type:'Windows', product:'PRD-3310', env:'Production'},
+  {id:'WIN-APP-04', type:'Windows', product:'PRD-3310', env:'Staging'},
+  {id:'WIN-WEB-05', type:'Windows', product:'PRD-6654', env:'Production'},
+  {id:'WIN-WEB-06', type:'Windows', product:'PRD-6654', env:'Production'},
+  {id:'WIN-APP-07', type:'Windows', product:'PRD-4187', env:'Production'},
+  {id:'WIN-DC-08',  type:'Windows', product:'PRD-2071', env:'DR'},
+  {id:'LNX-APP-01', type:'Linux', product:'PRD-1042', env:'Production'},
+  {id:'LNX-APP-02', type:'Linux', product:'PRD-1042', env:'Production'},
+  {id:'LNX-WEB-03', type:'Linux', product:'PRD-5029', env:'Production'},
+  {id:'LNX-WEB-04', type:'Linux', product:'PRD-5029', env:'Staging'},
+  {id:'LNX-CACHE-05', type:'Linux', product:'PRD-3310', env:'Production'},
+  {id:'LNX-APP-06', type:'Linux', product:'PRD-1042', env:'Production'},
+  {id:'LNX-WORKER-07', type:'Linux', product:'PRD-8890', env:'Production'},
+  {id:'LNX-WORKER-08', type:'Linux', product:'PRD-8890', env:'Production'},
+  {id:'AIX-CORE-01', type:'AIX', product:'PRD-7203', env:'Production'},
+  {id:'AIX-CORE-02', type:'AIX', product:'PRD-7203', env:'Production'},
+  {id:'AIX-BATCH-03', type:'AIX', product:'PRD-4187', env:'Production'},
+  {id:'AIX-BATCH-04', type:'AIX', product:'PRD-4187', env:'DR'},
+];
+const OS_BY_TYPE = {Windows:'Windows Server 2022', Linux:'RHEL 9.3', AIX:'AIX 7.3 TL2'};
+const CPU_BY_TYPE = {Windows:'Intel Xeon Gold 6248R', Linux:'AMD EPYC 7543', AIX:'IBM Power10'};
+
+const DB_INVENTORY = [
+  {id:'db-primary-01', type:'SQL Server', product:'PRD-1042', env:'Production'},
+  {id:'db-primary-02', type:'SQL Server', product:'PRD-2071', env:'Production'},
+  {id:'db-replica-01', type:'PostgreSQL', product:'PRD-3310', env:'Production'},
+  {id:'db-replica-02', type:'PostgreSQL', product:'PRD-3310', env:'Production'},
+  {id:'db-replica-03', type:'PostgreSQL', product:'PRD-5029', env:'Staging'},
+  {id:'db-oracle-fin-01', type:'Oracle', product:'PRD-4187', env:'Production'},
+  {id:'cache-redis-01', type:'Redis Cache', product:'PRD-1042', env:'Production'},
+  {id:'cache-redis-02', type:'Redis Cache', product:'PRD-6654', env:'Production'},
+];
+const ENGINE_VERSION = {'SQL Server':'2022 Enterprise','PostgreSQL':'15.4','Oracle':'19c Enterprise','Redis Cache':'7.2'};
+const ENGINE_TIER = {'SQL Server':'Standard_E8s_v5 · 8 vCore','PostgreSQL':'GP_Gen5_4 · 4 vCore','Oracle':'DBM_16 · 16 vCore','Redis Cache':'Premium P2 · 6GB'};
+
+/* Canonical per-item capacity signal: {current%, dailySlope%, noise}. Hand-authored
+   for the flagship narratives; procedurally derived (seeded, mostly flat/mild) for the rest. */
+const SYSOPS_SIGNAL = {
+  'LNX-APP-06': { memory:{current:78, slope:0.9, noise:1.4}, cpu:{current:54, slope:0.15, noise:3}, disk:{current:61, slope:0.35, noise:1} },
+  'WIN-SQL-01': { memory:{current:71, slope:0.25, noise:2}, cpu:{current:48, slope:0.05, noise:3.5}, disk:{current:74, slope:0.55, noise:1.2} },
+  'AIX-BATCH-03': { memory:{current:44, slope:-0.1, noise:2}, cpu:{current:62, slope:0.1, noise:4}, disk:{current:38, slope:0.05, noise:1} },
+};
+const DBOPS_SIGNAL = {
+  'db-primary-01': { storage:{current:81, slope:0.65, noise:1}, connpool:{current:58, slope:0.4, noise:3} },
+  'db-replica-01': { storage:{current:52, slope:0.1, noise:1.2}, connpool:{current:33, slope:0.05, noise:3} },
+  'cache-redis-01': { storage:{current:67, slope:0.3, noise:1.5}, connpool:{current:71, slope:0.5, noise:2.5} },
+};
+
+function signalFor(domain, itemId, metricKey){
+  const table = domain==='sysops' ? SYSOPS_SIGNAL : DBOPS_SIGNAL;
+  if (table[itemId] && table[itemId][metricKey]) return table[itemId][metricKey];
+  const rnd = seeded(domain+'|'+itemId+'|'+metricKey+'|signal');
+  const current = Math.round(20 + rnd()*45);
+  const slope = Math.round((rnd()-0.55)*100)/100; // mostly mild/flat, occasionally negative
+  const noise = 1 + rnd()*2.5;
+  return {current, slope, noise};
+}
+
+const SYSOPS_METRIC_DEFS = [
+  {key:'cpu', label:'CPU Usage', unit:'%', threshold:85, trendable:true},
+  {key:'memory', label:'Memory Usage', unit:'%', threshold:90, trendable:true},
+  {key:'disk', label:'Disk Usage', unit:'%', threshold:85, trendable:true},
+  {key:'diskio', label:'Disk IO', unit:'MB/s', threshold:null, trendable:false},
+  {key:'network', label:'Network Throughput', unit:'Mbps', threshold:null, trendable:false},
+  {key:'neterrors', label:'Network Errors', unit:'', threshold:null, trendable:false},
+];
+const DBOPS_METRIC_DEFS = [
+  {key:'latency', label:'Query Latency', unit:'ms', threshold:null, trendable:false},
+  {key:'connpool', label:'Connection Pool', unit:'%', threshold:90, trendable:true},
+  {key:'cachehit', label:'Cache Hit Rate', unit:'%', threshold:null, trendable:false},
+  {key:'txn', label:'Transactions/sec', unit:'', threshold:null, trendable:false},
+  {key:'replag', label:'Replication Lag', unit:'s', threshold:null, trendable:false},
+  {key:'storage', label:'Storage Used', unit:'%', threshold:85, trendable:true},
+];
+
+function metricValue(domain, itemId, def){
+  if (def.trendable){
+    const sig = signalFor(domain, itemId, def.key);
+    return Math.round(Math.max(0, Math.min(100, sig.current))*10)/10;
+  }
+  const rnd = seeded(domain+'|'+itemId+'|'+def.key+'|tile');
+  const ranges = {diskio:[40,320], network:[80,850], neterrors:[0,6], latency:[8,140], cachehit:[78,99.5], txn:[120,4200], replag:[0,4.5]};
+  const [lo,hi] = ranges[def.key]||[0,100];
+  return Math.round((lo+rnd()*(hi-lo))*10)/10;
+}
+function metricStatus(def, value){
+  if (!def.threshold) {
+    if (def.key==='cachehit') return value<85?'warning':'good';
+    if (def.key==='neterrors') return value>3?'warning':'good';
+    if (def.key==='replag') return value>2?'warning':'good';
+    return 'good';
+  }
+  const ratio = value/def.threshold;
+  return ratio>=1?'critical':ratio>=0.85?'serious':ratio>=0.7?'warning':'good';
+}
+function tileSpark(domain, itemId, key){
+  const rnd = seeded(domain+'|'+itemId+'|'+key+'|tilespark');
+  const base = metricValue(domain, itemId, {key, trendable:false});
+  const out=[]; let v=base*0.85;
+  for(let i=0;i<10;i++){ v = Math.max(0, v + (rnd()-0.5)*base*0.15); out.push(v); }
+  out.push(base);
+  return out;
+}
+
+/* ================= Sparkline (mini, non-interactive) ================= */
+function sparkSvg(data, w, h, color){
+  const min = Math.min(...data), max = Math.max(...data);
+  const range = (max-min)||1;
+  const step = w/(data.length-1);
+  const pts = data.map((v,i)=>[i*step, h - ((v-min)/range)*(h*0.8) - h*0.1]);
+  const line = pts.map((p,i)=>(i===0?'M':'L')+p[0].toFixed(1)+','+p[1].toFixed(1)).join(' ');
+  const last = pts[pts.length-1];
+  return `<svg viewBox="0 0 ${w} ${h}" width="100%" height="100%" preserveAspectRatio="none" aria-hidden="true">
+    <path d="${line}" fill="none" stroke="${color}" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"/>
+    <circle cx="${last[0].toFixed(1)}" cy="${last[1].toFixed(1)}" r="2.4" fill="${color}"/>
+  </svg>`;
+}
+
+/* ================= Trend + forecast chart engine ================= */
+const HISTORY_MODE = {'Last Hour':'hourly24','Last Day':'hourly24','Last 7 Days':'daily7','Last 30 Days':'daily30'};
+
+function buildTrendPoints(current, dailySlope, noiseAmp, historyMode, seedStr){
+  const rnd = seeded(seedStr);
+  let histCount, stepInDays, labelFn;
+  if (historyMode==='hourly24'){
+    histCount=24; stepInDays=1/24;
+    labelFn=(i)=> i===23 ? 'Now' : ((23-i)%6===0 ? `-${23-i}h` : '');
+  } else if (historyMode==='daily7'){
+    histCount=7; stepInDays=1;
+    labelFn=(i)=> i===6 ? 'Today' : `-${6-i}d`;
+  } else {
+    histCount=30; stepInDays=1;
+    labelFn=(i)=> i===29 ? 'Today' : ((29-i)%5===0 ? `-${29-i}d` : '');
+  }
+  const histVals=[current];
+  for(let i=1;i<histCount;i++){
+    const prev = histVals[0] - dailySlope*stepInDays + (rnd()-0.5)*noiseAmp;
+    histVals.unshift(Math.max(0, Math.min(100, prev)));
+  }
+  const points = histVals.map((v,i)=>({t:i, label:labelFn(i), actual:Math.round(v*10)/10, forecast:null}));
+  const fcCount = 10;
+  let last = current;
+  for(let i=1;i<=fcCount;i++){
+    last = Math.max(0, Math.min(105, last + dailySlope));
+    const label = (i%2===0 || i===fcCount) ? `+${i}d` : '';
+    points.push({t:histCount-1+i, label, actual:null, forecast:Math.round(last*10)/10});
+  }
+  points[histCount-1].forecast = points[histCount-1].actual;
+  return {points, todayIndex:histCount-1};
+}
+
+function daysToThreshold(current, dailySlope, threshold){
+  if (!threshold) return null;
+  if (dailySlope <= 0.03) return null;
+  if (current >= threshold) return 0;
+  return Math.max(1, Math.round((threshold-current)/dailySlope));
+}
+function headroomStatus(days){
+  if (days===null) return 'good';
+  if (days<=14) return 'critical';
+  if (days<=45) return 'warning';
+  return 'good';
+}
+
+let chartSeq = 0;
+const CHARTS = {};
+function renderTrendChartSvg(chartId, points, todayIndex, threshold, colorVar){
+  const W=680, H=230, mL=34, mR=14, mT=14, mB=26;
+  const plotW = W-mL-mR, plotH = H-mT-mB;
+  const allVals = points.flatMap(p=>[p.actual,p.forecast]).filter(v=>v!=null);
+  const yMax = Math.max(threshold||0, ...allVals, 10);
+  const yTop = Math.min(105, Math.ceil((yMax*1.15)/10)*10);
+  const xAt = i => mL + (i/(points.length-1))*plotW;
+  const yAt = v => mT + plotH - (v/yTop)*plotH;
+
+  const gridN=4;
+  let grid='';
+  for(let g=0; g<=gridN; g++){
+    const val = Math.round(yTop*g/gridN);
+    const y = yAt(val);
+    grid += `<line x1="${mL}" y1="${y.toFixed(1)}" x2="${W-mR}" y2="${y.toFixed(1)}" stroke="var(--hair)" stroke-width="1"/>`;
+    grid += `<text x="${mL-8}" y="${(y+3.5).toFixed(1)}" font-size="9.5" fill="var(--muted)" text-anchor="end" font-family="var(--font)">${val}</text>`;
+  }
+
+  const actualPts = points.map((p,i)=>p.actual!=null?[xAt(i),yAt(p.actual)]:null).filter(Boolean);
+  const forecastPts = points.map((p,i)=>p.forecast!=null?[xAt(i),yAt(p.forecast)]:null).filter(Boolean);
+  const pathOf = pts => pts.map((p,i)=>(i===0?'M':'L')+p[0].toFixed(1)+','+p[1].toFixed(1)).join(' ');
+  const areaOf = pts => pathOf(pts) + ` L${pts[pts.length-1][0].toFixed(1)},${(mT+plotH).toFixed(1)} L${pts[0][0].toFixed(1)},${(mT+plotH).toFixed(1)} Z`;
+
+  let thresholdLine='';
+  if (threshold){
+    const ty = yAt(threshold);
+    thresholdLine = `<line x1="${mL}" y1="${ty.toFixed(1)}" x2="${W-mR}" y2="${ty.toFixed(1)}" stroke="var(--critical)" stroke-width="1.3" stroke-dasharray="4 3" opacity="0.75"/>
+      <text x="${W-mR}" y="${(ty-5).toFixed(1)}" font-size="9.5" fill="var(--critical)" text-anchor="end" font-family="var(--font)" font-weight="700">Threshold ${threshold}%</text>`;
+  }
+
+  const todayX = xAt(todayIndex);
+  const todayMarker = `<line x1="${todayX.toFixed(1)}" y1="${mT}" x2="${todayX.toFixed(1)}" y2="${mT+plotH}" stroke="var(--muted)" stroke-width="1" stroke-dasharray="2 3" opacity="0.6"/>`;
+
+  const xLabels = points.map((p,i)=> p.label ? `<text x="${xAt(i).toFixed(1)}" y="${H-6}" font-size="9.5" fill="var(--muted)" text-anchor="middle" font-family="var(--font)">${p.label}</text>` : '').join('');
+
+  const lastActual = actualPts[actualPts.length-1];
+  const lastForecast = forecastPts[forecastPts.length-1];
+
+  const gid='ga'+chartId;
+  const svg = `<svg viewBox="0 0 ${W} ${H}" width="100%" height="${H}" preserveAspectRatio="xMidYMid meet" data-chart="${chartId}">
+    <defs><linearGradient id="${gid}" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="${colorVar}" stop-opacity="0.16"/>
+      <stop offset="100%" stop-color="${colorVar}" stop-opacity="0"/>
+    </linearGradient></defs>
+    ${grid}
+    ${thresholdLine}
+    ${todayMarker}
+    <path d="${areaOf(actualPts)}" fill="url(#${gid})" stroke="none"/>
+    <path d="${pathOf(actualPts)}" fill="none" stroke="${colorVar}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+    <path d="${pathOf(forecastPts)}" fill="none" stroke="${colorVar}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" stroke-dasharray="5 4" opacity="0.75"/>
+    <circle cx="${lastActual[0].toFixed(1)}" cy="${lastActual[1].toFixed(1)}" r="4" fill="${colorVar}" stroke="var(--surface-2)" stroke-width="2"/>
+    <circle cx="${lastForecast[0].toFixed(1)}" cy="${lastForecast[1].toFixed(1)}" r="3.5" fill="${colorVar}" stroke="var(--surface-2)" stroke-width="2" opacity="0.8"/>
+    ${xLabels}
+    <line class="crosshair" x1="0" y1="${mT}" x2="0" y2="${mT+plotH}" stroke="var(--ink-2)" stroke-width="1" opacity="0" />
+  </svg>`;
+
+  CHARTS[chartId] = {points, xAt, mL, mR, W};
+  return svg;
+}
+
+function wireCharts(){
+  document.querySelectorAll('[data-chart]').forEach(svg=>{
+    const id = svg.getAttribute('data-chart');
+    const meta = CHARTS[id];
+    if (!meta) return;
+    const wrap = svg.closest('.chart-wrap');
+    const tooltip = wrap ? wrap.querySelector('.chart-tooltip') : null;
+    const crosshair = svg.querySelector('.crosshair');
+    svg.addEventListener('mousemove', e=>{
+      const rect = svg.getBoundingClientRect();
+      const relX = (e.clientX-rect.left)/rect.width*meta.W;
+      let idx = Math.round(((relX-meta.mL)/(meta.W-meta.mL-meta.mR))*(meta.points.length-1));
+      idx = Math.max(0, Math.min(meta.points.length-1, idx));
+      const p = meta.points[idx];
+      const x = meta.xAt(idx);
+      if (crosshair){ crosshair.setAttribute('x1',x); crosshair.setAttribute('x2',x); crosshair.setAttribute('opacity','0.5'); }
+      if (tooltip){
+        const val = p.actual!=null? p.actual : p.forecast;
+        const tag = p.actual!=null? 'Actual' : 'Projected';
+        tooltip.querySelector('.tt-label').textContent = (p.label||('point '+idx))+' · '+tag;
+        tooltip.querySelector('.tt-val').textContent = val+'%';
+        const pct = x/meta.W*100;
+        tooltip.style.left = pct+'%';
+        tooltip.style.top = '6px';
+        tooltip.classList.add('show');
+      }
+    });
+    svg.addEventListener('mouseleave', ()=>{
+      if (crosshair) crosshair.setAttribute('opacity','0');
+      if (tooltip) tooltip.classList.remove('show');
+    });
+  });
+}
+
+/* ================= Domain config ================= */
+const STATUS_LABEL = {good:'Healthy', warning:'Watch', serious:'Elevated', critical:'Critical'};
+function statusIcon(s){ return s==='good'?ic('check'):s==='critical'?ic('critx'):ic('warn'); }
+
+function inventory(domain){ return domain==='sysops' ? HOST_INVENTORY : DB_INVENTORY; }
+function metricDefs(domain){ return domain==='sysops' ? SYSOPS_METRIC_DEFS : DBOPS_METRIC_DEFS; }
+function typeOptions(domain){ return domain==='sysops' ? ['Windows','Linux','AIX'] : ['SQL Server','PostgreSQL','Oracle','Redis Cache']; }
+function typeFilterLabel(domain){ return domain==='sysops' ? 'Infrastructure Type' : 'Database Engine'; }
+function resourceFilterLabel(domain){ return domain==='sysops' ? 'Hostname' : 'Instance'; }
+function trendMetrics(domain){ return metricDefs(domain).filter(m=>m.trendable); }
+function primaryTrendKey(domain){ return domain==='sysops' ? 'memory' : 'storage'; }
+
+function matchingItems(domain, s){
+  return inventory(domain).filter(it=>
+    (s.type==='all' || it.type===s.type) &&
+    (s.product==='all' || it.product===s.product) &&
+    (s.env==='all' || it.env===s.env)
+  );
+}
+
+function specsFor(domain, item){
+  if (domain==='sysops'){
+    const rnd = seeded('sysops-specs|'+item.id);
+    const cores = item.type==='AIX' ? 8+Math.floor(rnd()*8) : 8+Math.floor(rnd()*24);
+    const ramGb = [16,32,64,128][Math.floor(rnd()*4)];
+    const diskTb = (1+Math.floor(rnd()*4));
+    const cpuPct = metricValue('sysops', item.id, {key:'cpu', trendable:true});
+    return [
+      {title:'CPU Info', rows:[
+        {k:'Model', v:CPU_BY_TYPE[item.type]},
+        {k:'Cores', v:String(cores)},
+        {k:'Clock Speed', v:(2.4+rnd()*0.8).toFixed(1)+' GHz'},
+        {k:'Current Utilization', v:cpuPct+'%'},
+      ]},
+      {title:'System Details', rows:[
+        {k:'OS', v:OS_BY_TYPE[item.type]},
+        {k:'Uptime', v:(20+Math.floor(rnd()*300))+' days'},
+        {k:'Total RAM', v:ramGb+' GB'},
+        {k:'Disk Capacity', v:diskTb+' TB'},
+      ]},
+    ];
+  }
+  const rnd = seeded('dbops-specs|'+item.id);
+  const storagePct = metricValue('dbops', item.id, {key:'storage', trendable:true});
+  const allocGb = [250,500,750,1000][Math.floor(rnd()*4)];
+  const maxConn = [200,500,1000,2000][Math.floor(rnd()*4)];
+  const activeConn = Math.round(maxConn*(0.2+rnd()*0.5));
+  return [
+    {title:'Instance Info', rows:[
+      {k:'Engine', v:item.type},
+      {k:'Version', v:ENGINE_VERSION[item.type]},
+      {k:'Tier', v:ENGINE_TIER[item.type]},
+      {k:'Provisioned IOPS', v:(2000+Math.floor(rnd()*8000)).toLocaleString()},
+    ]},
+    {title:'Storage & Connections', rows:[
+      {k:'Allocated Storage', v:allocGb+' GB'},
+      {k:'Used Storage', v:Math.round(allocGb*storagePct/100)+' GB'},
+      {k:'Max Connections', v:String(maxConn)},
+      {k:'Active Connections', v:String(activeConn)},
+    ]},
+  ];
+}
+
+/* ================= State ================= */
+const state = {
+  topTab: 'sysops', // 'sysops' | 'dbops'
+  sysops: { type:'all', product:'all', env:'all', item:'LNX-APP-06', duration:'Last 7 Days', subtab:'performance', trendMetric:'memory' },
+  dbops:  { type:'all', product:'all', env:'all', item:'db-primary-01', duration:'Last 7 Days', subtab:'performance', trendMetric:'storage' },
+};
+function domainState(domain){ return state[domain]; }
+
+/* ================= Actions ================= */
+function setTopTab(tab){ state.topTab=tab; render(); }
+function setFilter(domain, key, val){
+  const s = domainState(domain);
+  s[key]=val;
+  const matches = matchingItems(domain, s);
+  if (!matches.find(it=>it.id===s.item)) s.item = matches.length ? matches[0].id : null;
+  render();
+}
+function setItem(domain, id){ domainState(domain).item = id; render(); }
+function setDuration(domain, d){ domainState(domain).duration = d; render(); }
+function setSubtab2(domain, tab){ domainState(domain).subtab = tab; render(); }
+function setTrendMetric(domain, key){ domainState(domain).trendMetric = key; render(); }
+function analyzeCapacity(domain, btn){
+  const svg = btn.querySelector('svg'); if (svg) svg.classList.add('spin');
+  showToast(ic('check')+' Capacity analysis refreshed');
+  setTimeout(()=>render(), 350);
+}
+
+/* ================= Render: shell ================= */
+function renderShell(){
+  return `
+  <div class="page-head">
+    <h1>Operations Monitoring</h1>
+    <p>Comprehensive infrastructure and database operations monitoring and capacity planning</p>
+  </div>
+  <div class="tabcard">
+    <div class="toptabs">
+      <button class="toptab ${state.topTab==='sysops'?'active':''}" onclick="setTopTab('sysops')">${ic('compute')} SysOps Capacity Planning</button>
+      <button class="toptab ${state.topTab==='dbops'?'active':''}" onclick="setTopTab('dbops')">${ic('database')} DBOps Capacity Planning</button>
+    </div>
+    <div class="tabcard-body">
+      ${renderDomain(state.topTab)}
+    </div>
+  </div>`;
+}
+
+/* ================= Render: one domain tab ================= */
+function renderDomain(domain){
+  const s = domainState(domain);
+  const matches = matchingItems(domain, s);
+  const item = inventory(domain).find(it=>it.id===s.item) || matches[0];
+  const title = domain==='sysops' ? 'SysOps Capacity Planning' : 'DBOps Capacity Planning';
+  const subtitle = domain==='sysops'
+    ? 'Analyze infrastructure capacity and get AI-powered optimization recommendations'
+    : 'Analyze database capacity and get AI-powered optimization recommendations';
+
+  return `
+  <div class="domain-head">
+    <h2>${title}</h2>
+    <p>${subtitle}</p>
+  </div>
+  <div class="filter-panel">
+    <div class="filter-row">
+      <div class="filter-field">
+        <label>${typeFilterLabel(domain)}</label>
+        <select onchange="setFilter('${domain}','type', this.value)">
+          <option value="all" ${s.type==='all'?'selected':''}>All</option>
+          ${typeOptions(domain).map(t=>`<option value="${t}" ${s.type===t?'selected':''}>${t}</option>`).join('')}
+        </select>
+      </div>
+      <div class="filter-field">
+        <label>Product ID</label>
+        <select onchange="setFilter('${domain}','product', this.value)">
+          <option value="all" ${s.product==='all'?'selected':''}>All Products</option>
+          ${PRODUCTS.map(p=>`<option value="${p.id}" ${s.product===p.id?'selected':''}>${p.id} · ${p.name}</option>`).join('')}
+        </select>
+      </div>
+      <div class="filter-field">
+        <label>Environment</label>
+        <select onchange="setFilter('${domain}','env', this.value)">
+          <option value="all" ${s.env==='all'?'selected':''}>All</option>
+          ${['Production','Staging','DR'].map(e=>`<option value="${e}" ${s.env===e?'selected':''}>${e}</option>`).join('')}
+        </select>
+      </div>
+      <div class="filter-field">
+        <label>${resourceFilterLabel(domain)}</label>
+        <select onchange="setItem('${domain}', this.value)">
+          ${matches.length===0?'<option>No matches</option>':matches.map(it=>`<option value="${it.id}" ${s.item===it.id?'selected':''}>${it.id}</option>`).join('')}
+        </select>
+      </div>
+      <div class="filter-field">
+        <label>Tracking Duration</label>
+        <select onchange="setDuration('${domain}', this.value)">
+          ${DURATIONS.map(d=>`<option value="${d}" ${s.duration===d?'selected':''}>${d}</option>`).join('')}
+        </select>
+      </div>
+      <div class="filter-actions">
+        <button class="btn primary" onclick="analyzeCapacity('${domain}', this)">${ic('refresh')} Analyze Capacity</button>
+        <button class="btn ai" ${item?'':'disabled'} onclick="openInsights('${domain}')">${ic('sparkle')} Get AI Insights</button>
+      </div>
+    </div>
+    ${item?`<div class="selected-tag" style="margin-top:12px;">Selected: <b>${item.id}</b> · ${item.type} · ${productName(item.product)} · ${item.env}</div>`:''}
+  </div>
+  ${item ? renderAnalysis(domain, item) : `<div class="selected-tag">No resources match the current filters.</div>`}
+  `;
+}
+
+function renderAnalysis(domain, item){
+  const s = domainState(domain);
+  const cards = specsFor(domain, item);
+  const primaryKey = primaryTrendKey(domain);
+  const primarySig = signalFor(domain, item.id, primaryKey);
+  const primaryDef = metricDefs(domain).find(m=>m.key===primaryKey);
+  const days = daysToThreshold(primarySig.current, primarySig.slope, primaryDef.threshold);
+  const hStatus = headroomStatus(days);
+  const headroomText = days===null ? `Stable — no ${primaryDef.threshold}% breach projected` : days===0 ? `Already at or above ${primaryDef.threshold}% threshold` : `~${days} days until ${primaryDef.threshold}% ${primaryDef.label.toLowerCase()}`;
+
+  return `
+  <div class="content-grid">
+    <div class="panel">
+      <h3>${domain==='sysops'?'System Overview':'Database Overview'}</h3>
+      <div class="sub">${domain==='sysops'?'Infrastructure specifications and current resource allocation':'Instance specifications and current resource allocation'}</div>
+      ${cards.map(c=>`
+        <div class="spec-card">
+          <h4>${c.title}</h4>
+          ${c.rows.map(r=>`<div class="spec-row"><span class="k">${r.k}</span><span class="v">${r.v}</span></div>`).join('')}
+        </div>`).join('')}
+      <div class="headroom-box">
+        <h4>Capacity Headroom</h4>
+        <div class="meter"><div class="meter-fill" style="width:${Math.min(100,primarySig.current)}%; background:var(--${hStatus==='good'?'good':hStatus==='warning'?'warning':'critical'});"></div></div>
+        <div class="headroom-line s-${hStatus}">${statusIcon(hStatus)} ${headroomText}</div>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="subtabs2">
+        <button class="subtab2 ${s.subtab==='performance'?'active':''}" onclick="setSubtab2('${domain}','performance')">${ic('bars')} Performance Metrics</button>
+        <button class="subtab2 ${s.subtab==='trends'?'active':''}" onclick="setSubtab2('${domain}','trends')">${ic('trend')} Usage Trends</button>
+      </div>
+      ${s.subtab==='performance' ? renderPerformance(domain, item) : renderTrends(domain, item)}
+    </div>
+  </div>`;
+}
+
+function renderPerformance(domain, item){
+  const s = domainState(domain);
+  const defs = metricDefs(domain);
+  return `
+  <div class="section-title">${s.duration} Performance Analysis</div>
+  <div class="section-note">Snapshot metrics for ${item.id}, compared against the prior period.</div>
+  <div class="stat-grid">
+    ${defs.map(def=>{
+      const value = metricValue(domain, item.id, def);
+      const status = metricStatus(def, value);
+      const spark = tileSpark(domain, item.id, def.key);
+      const rnd = seeded(domain+'|'+item.id+'|'+def.key+'|delta');
+      const deltaPct = Math.round((rnd()-0.5)*24*10)/10;
+      const dir = deltaPct>0.5?'up':deltaPct<-0.5?'down':'flat';
+      const display = def.unit==='%' ? value+'%' : (value + (def.unit?' '+def.unit:''));
+      return `
+      <div class="stat-tile">
+        <div class="l">${def.label}</div>
+        <div class="row">
+          <span class="v s-${status}">${display}</span>
+          <span class="mini">${sparkSvg(spark, 64, 24, `var(--${status})`)}</span>
+        </div>
+        <div class="delta ${dir}">${dir==='up'?ic('up'):dir==='down'?ic('down'):ic('flat')} ${Math.abs(deltaPct)}% vs prior</div>
+      </div>`;
+    }).join('')}
+  </div>`;
+}
+
+function renderTrends(domain, item){
+  const s = domainState(domain);
+  const tmetrics = trendMetrics(domain);
+  const activeDef = tmetrics.find(m=>m.key===s.trendMetric) || tmetrics[0];
+  const sig = signalFor(domain, item.id, activeDef.key);
+  const mode = HISTORY_MODE[s.duration];
+  const chartId = 'c'+(chartSeq++);
+  const {points, todayIndex} = buildTrendPoints(sig.current, sig.slope, sig.noise, mode, domain+'|'+item.id+'|'+activeDef.key+'|'+mode);
+  const days = daysToThreshold(sig.current, sig.slope, activeDef.threshold);
+  const trendDir = sig.slope>0.05?'rising':sig.slope<-0.05?'falling':'flat';
+
+  return `
+  <div class="trend-toolbar">
+    <div class="metric-seg">
+      ${tmetrics.map(m=>`<button class="${s.trendMetric===m.key?'active':''}" onclick="setTrendMetric('${domain}','${m.key}')">${m.label}</button>`).join('')}
+    </div>
+    <div class="section-note" style="margin:0;">${item.id} · ${s.duration} history + 10-day forecast</div>
+  </div>
+  <div class="chart-card">
+    <div class="chart-legend">
+      <span class="legend-item"><span class="legend-key" style="border-color:var(--accent);"></span>Actual</span>
+      <span class="legend-item"><span class="legend-key dashed" style="border-color:var(--accent);"></span>Projected</span>
+      ${activeDef.threshold?`<span class="legend-item"><span class="legend-key dashed" style="border-color:var(--critical);"></span>Threshold (${activeDef.threshold}%)</span>`:''}
+    </div>
+    <div class="chart-wrap">
+      ${renderTrendChartSvg(chartId, points, todayIndex, activeDef.threshold, 'var(--accent)')}
+      <div class="chart-tooltip"><div class="tt-label"></div><div class="tt-val"></div></div>
+    </div>
+    <div class="forecast-note">${ic('info')} ${activeDef.label} is ${trendDir}${sig.slope>0.05?` at ~${sig.slope}%/day`:''}. ${days!==null? `Projected to cross ${activeDef.threshold}% in ~${days} days.` : 'No threshold breach projected at the current rate.'}</div>
+  </div>`;
+}
+
+/* ================= AI Insights Drawer ================= */
+const SYSOPS_ACTIONS_UP = itemId => ([
+  `Increase memory allocation on <b>${itemId}</b> ahead of the projected breach date`,
+  `Right-size or offload workload to a peer host in the same tier with more headroom`,
+  `Enable proactive alerting at 80% so this doesn't reach critical unattended`,
+  `Review the most recent deploy for a possible memory-leak regression`,
+]);
+const SYSOPS_ACTIONS_STABLE = itemId => ([
+  `No capacity action required for <b>${itemId}</b> at the current trend`,
+  `Revisit this forecast after the next 30 days of data accumulate`,
+  `Consider this host as a candidate to absorb load from over-utilized peers`,
+]);
+const DBOPS_ACTIONS_UP = itemId => ([
+  `Provision additional storage on <b>${itemId}</b> ahead of the projected breach date`,
+  `Enable auto-growth increments so capacity isn't exhausted mid-transaction`,
+  `Archive or purge tables older than the retention window to reclaim space`,
+  `Review index bloat — a rebuild can often recover 10-20% of used storage`,
+]);
+const DBOPS_ACTIONS_STABLE = itemId => ([
+  `No capacity action required for <b>${itemId}</b> at the current trend`,
+  `Revisit this forecast after the next 30 days of data accumulate`,
+  `Storage headroom is healthy — safe to onboard additional workloads`,
+]);
+
+function buildCapacityCase(domain, item){
+  const defs = metricDefs(domain);
+  const scan = defs.map(def=>{
+    const value = metricValue(domain, item.id, def);
+    const status = metricStatus(def, value);
+    const display = def.unit==='%' ? value+'%' : (value+(def.unit?' '+def.unit:''));
+    return {key:def.key, label:def.label, detail:`${display} current${def.trendable?` (threshold ${def.threshold}%)`:''}`, flag: status!=='good'};
+  });
+  const primaryKey = primaryTrendKey(domain);
+  const primaryDef = defs.find(d=>d.key===primaryKey);
+  const sig = signalFor(domain, item.id, primaryKey);
+  const days = daysToThreshold(sig.current, sig.slope, primaryDef.threshold);
+  const rising = sig.slope > 0.05;
+  const confidence = rising ? Math.min(97, 78+Math.round(sig.slope*12)) : 68;
+
+  const target = new Date();
+  if (days) target.setDate(target.getDate()+days);
+  const targetStr = target.toLocaleDateString([], {month:'short', day:'numeric'});
+
+  const rootCause = rising
+    ? `<b>${item.id}</b> ${primaryDef.label.toLowerCase()} is climbing at roughly <b>${sig.slope}%/day</b>, currently at <b>${sig.current}%</b>. At this rate it crosses the <b>${primaryDef.threshold}%</b> threshold in approximately <b>${days} days</b> (around ${targetStr})${days!==null&&days<=14?', which is inside the standard two-week provisioning lead time — this needs action now.':'.'}`
+    : `<b>${item.id}</b> ${primaryDef.label.toLowerCase()} is stable at <b>${sig.current}%</b> with no material upward trend over the tracked window. No capacity intervention is currently warranted.`;
+
+  const evidence = [
+    {time:'-7d', text:`${primaryDef.label} baseline recorded at ${(sig.current-sig.slope*7).toFixed(1)}%`},
+    {time:'-3d', text:`Growth rate confirmed steady at ~${sig.slope}%/day across the trailing window`},
+    {time:'Today', text:`${primaryDef.label} at ${sig.current}% on ${item.id}`},
+    {time:days!==null?`+${days}d`:'—', text: days!==null ? `Projected to reach ${primaryDef.threshold}% threshold (${targetStr})` : 'No threshold crossing projected within the forecast horizon'},
+  ];
+
+  const actions = domain==='sysops'
+    ? (rising ? SYSOPS_ACTIONS_UP(item.id) : SYSOPS_ACTIONS_STABLE(item.id))
+    : (rising ? DBOPS_ACTIONS_UP(item.id) : DBOPS_ACTIONS_STABLE(item.id));
+
+  return {title:item.id, scan, confidence, rootCause, evidence, actions};
+}
+
+let drawerTimers = [];
+let drawerGen = 0;
+function clearDrawerTimers(){ drawerTimers.forEach(clearTimeout); drawerTimers=[]; }
+
+function openInsights(domain){
+  const s = domainState(domain);
+  const item = inventory(domain).find(it=>it.id===s.item);
+  if (!item) return;
+  const kase = buildCapacityCase(domain, item);
+  clearDrawerTimers();
+  const gen = ++drawerGen;
+  document.getElementById('overlay').classList.add('show');
+  const drawer = document.getElementById('drawer');
+  drawer.innerHTML = `
+    <div class="drawer-head">
+      <div>
+        <div class="ai-tag">${ic('sparkle')} AI Capacity Insights</div>
+        <h3>${item.id}</h3>
+        <div class="sub">${productName(item.product)} · ${item.env} · analyzing metrics &amp; usage trend</div>
+      </div>
+      <button class="drawer-close" onclick="closeDrawer()">${ic('close')}</button>
+    </div>
+    <div class="drawer-body" id="drawer-stage"></div>
+    <div class="drawer-footer" id="drawer-footer"></div>`;
+  drawer.classList.add('show');
+  runScanStage(kase, gen);
+}
+function closeDrawer(){
+  clearDrawerTimers();
+  document.getElementById('overlay').classList.remove('show');
+  document.getElementById('drawer').classList.remove('show');
+}
+function runScanStage(kase, gen){
+  const stage = document.getElementById('drawer-stage');
+  stage.innerHTML = `
+    <div class="stage-label">${ic('refresh')} Scanning metrics</div>
+    <div class="scan-list" id="scan-list">
+      ${kase.scan.map(s=>`
+        <div class="scan-item" data-key="${s.key}">
+          <span class="scan-icon">${ic('bars')}</span>
+          <span class="scan-text"><span class="n">${s.label}</span><span class="d">checking current value &amp; trend…</span></span>
+        </div>`).join('')}
+    </div>`;
+  document.getElementById('drawer-footer').innerHTML = '';
+  const items = [...stage.querySelectorAll('.scan-item')];
+  items.forEach((el,i)=>{
+    drawerTimers.push(setTimeout(()=>{
+      if (gen!==drawerGen) return;
+      const sItem = kase.scan[i];
+      el.classList.add('show', sItem.flag?'flag':'done');
+      el.querySelector('.scan-icon').innerHTML = sItem.flag ? ic('warn') : ic('check');
+      el.querySelector('.d').textContent = sItem.detail;
+    }, 220*(i+1)));
+  });
+  drawerTimers.push(setTimeout(()=>{ if (gen===drawerGen) runCorrelateStage(kase, gen); }, 220*(items.length+1)+450));
+}
+function runCorrelateStage(kase, gen){
+  const stage = document.getElementById('drawer-stage');
+  stage.insertAdjacentHTML('beforeend', `
+    <div class="stage-label correlating" style="margin-top:18px;"><span class="spin" style="display:inline-flex;">${ic('refresh')}</span> Modeling capacity forecast…</div>
+  `);
+  drawerTimers.push(setTimeout(()=>{ if (gen===drawerGen) runResultsStage(kase, gen); }, 1000));
+}
+function runResultsStage(kase, gen){
+  const stage = document.getElementById('drawer-stage');
+  const correlating = stage.querySelector('.stage-label.correlating');
+  if (correlating) correlating.remove();
+  stage.insertAdjacentHTML('beforeend', `
+    <div class="stage-label" style="margin-top:18px;">${ic('sparkle')} Capacity forecast</div>
+    <div class="result-card">
+      <h4>${ic('sparkle')} Confidence</h4>
+      <div class="confidence-row">
+        <div class="confidence-bar"><div class="confidence-fill" style="width:${kase.confidence}%;"></div></div>
+        <div class="confidence-num">${kase.confidence}%</div>
+      </div>
+      <div class="root-cause-text">${kase.rootCause}</div>
+    </div>
+    <div class="result-card">
+      <h4>${ic('clock')} Evidence</h4>
+      ${kase.evidence.map(e=>`<div class="evidence-item"><span class="evidence-time">${e.time}</span><span class="evidence-text">${e.text}</span></div>`).join('')}
+    </div>
+    <div class="result-card">
+      <h4>${ic('check')} Recommended actions</h4>
+      ${kase.actions.map(a=>`<div class="action-item"><span class="action-check">${ic('check')}</span><span class="action-text">${a}</span></div>`).join('')}
+    </div>
+  `);
+  document.getElementById('drawer-footer').innerHTML = `
+    <button class="btn ghost" onclick="closeDrawer()">Dismiss</button>
+    <button class="btn primary" onclick="createCapacityRequest('${kase.title}')">${ic('check')} Create Capacity Request</button>`;
+}
+
+let toastTimer=null;
+function showToast(html){
+  const t = document.getElementById('toast');
+  t.innerHTML = html;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(()=>t.classList.remove('show'), 2600);
+}
+function createCapacityRequest(title){
+  const num = 3300+Math.floor(seeded(title+'cap')()*90);
+  showToast(ic('check')+` Capacity request CAP-${num} created for ${title}`);
+}
+
+/* ================= Init ================= */
+function render(){
+  document.getElementById('root').innerHTML = renderShell();
+  wireCharts();
+}
+document.addEventListener('keydown', e=>{
+  if (e.key==='Escape' && document.getElementById('drawer').classList.contains('show')) closeDrawer();
+});
+render();
+</script>
+</body>
+</html>
