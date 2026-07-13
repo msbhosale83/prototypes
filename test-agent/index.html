@@ -1,0 +1,932 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Test Agent — AI Test Writer & Runner</title>
+<style>
+:root{
+  --plane:#f9f9f7; --surface:#fcfcfb; --surface-2:#f2f1ec;
+  --ink:#0b0b0b; --ink-2:#52514e; --muted:#898781;
+  --hair:#e1e0d9; --border:rgba(11,11,11,0.10);
+  --accent:#2a78d6; --accent-ink:#ffffff; --accent-soft:#e7f0fc;
+  --ai:#4a3aa7; --ai-soft:#efeaff; --ai-ink:#ffffff;
+  --good:#0ca30c; --warning:#fab219; --serious:#ec835a; --critical:#d03b3b; --warning-ink:#8a5a00;
+  --good-soft:#e4f5e2; --warning-soft:#fff3d9; --serious-soft:#fde7dd; --critical-soft:#fbe3e3;
+  --font: system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: ui-monospace, "Cascadia Code", "SFMono-Regular", Consolas, monospace;
+  --shadow: 0 1px 2px rgba(11,11,11,0.04), 0 4px 16px rgba(11,11,11,0.06);
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --plane:#0d0d0d; --surface:#1a1a19; --surface-2:#232320;
+    --ink:#ffffff; --ink-2:#c3c2b7; --muted:#898781;
+    --hair:#2c2c2a; --border:rgba(255,255,255,0.10);
+    --accent:#3987e5; --accent-ink:#ffffff; --accent-soft:#173154;
+    --ai:#9085e9; --ai-soft:#241f47; --ai-ink:#0d0d0d;
+    --good:#0ca30c; --warning:#fab219; --serious:#ec835a; --critical:#e66767; --warning-ink:#fab219;
+    --good-soft:#0f2a10; --warning-soft:#3a2c08; --serious-soft:#3a2013; --critical-soft:#3a1414;
+    --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 8px 24px rgba(0,0,0,0.35);
+  }
+}
+:root[data-theme="dark"]{
+  --plane:#0d0d0d; --surface:#1a1a19; --surface-2:#232320;
+  --ink:#ffffff; --ink-2:#c3c2b7; --muted:#898781;
+  --hair:#2c2c2a; --border:rgba(255,255,255,0.10);
+  --accent:#3987e5; --accent-ink:#ffffff; --accent-soft:#173154;
+  --ai:#9085e9; --ai-soft:#241f47; --ai-ink:#0d0d0d;
+  --good:#0ca30c; --warning:#fab219; --serious:#ec835a; --critical:#e66767; --warning-ink:#fab219;
+  --good-soft:#0f2a10; --warning-soft:#3a2c08; --serious-soft:#3a2013; --critical-soft:#3a1414;
+}
+:root[data-theme="light"]{
+  --plane:#f9f9f7; --surface:#fcfcfb; --surface-2:#f2f1ec;
+  --ink:#0b0b0b; --ink-2:#52514e; --muted:#898781;
+  --hair:#e1e0d9; --border:rgba(11,11,11,0.10);
+  --accent:#2a78d6; --accent-ink:#ffffff; --accent-soft:#e7f0fc;
+  --ai:#4a3aa7; --ai-soft:#efeaff; --ai-ink:#ffffff;
+  --good:#0ca30c; --warning:#fab219; --serious:#ec835a; --critical:#d03b3b; --warning-ink:#8a5a00;
+  --good-soft:#e4f5e2; --warning-soft:#fff3d9; --serious-soft:#fde7dd; --critical-soft:#fbe3e3;
+}
+*{box-sizing:border-box;}
+body{margin:0;}
+.app{ font-family:var(--font); background:var(--plane); color:var(--ink); min-height:100vh; padding:26px clamp(16px,4vw,40px) 80px; }
+.wrap{max-width:1320px; margin:0 auto;}
+h1,h2,h3,h4{text-wrap:balance; margin:0;}
+button{font-family:inherit; cursor:pointer;}
+button:focus-visible, [tabindex]:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible{ outline:2px solid var(--accent); outline-offset:2px; }
+::-webkit-scrollbar{height:10px; width:10px;}
+::-webkit-scrollbar-thumb{background:var(--hair); border-radius:8px;}
+
+.btn{
+  display:inline-flex; align-items:center; gap:8px; border-radius:9px; border:1px solid var(--border);
+  padding:9px 15px; font-size:13px; font-weight:600; background:var(--surface); color:var(--ink);
+  transition:transform .1s, background .15s;
+}
+.btn:hover{transform:translateY(-1px);}
+.btn:active{transform:translateY(0);}
+.btn.primary{background:var(--ink); color:var(--plane); border-color:transparent;}
+.btn.accent{background:var(--accent); color:var(--accent-ink); border-color:transparent;}
+.btn.ai{background:var(--ai); color:var(--ai-ink); border-color:transparent;}
+.btn.ghost{background:transparent;}
+.btn.small{padding:6px 11px; font-size:12px;}
+.btn.block{width:100%; justify-content:center;}
+.btn[disabled]{opacity:.45; cursor:not-allowed; transform:none;}
+.btn svg{width:14px; height:14px; flex:none;}
+.spin{animation:spin 1s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+@media (prefers-reduced-motion: reduce){.spin{animation-duration:3s;}}
+
+/* ---------- Header ---------- */
+.topbar{display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap; margin-bottom:18px;}
+.brand{display:flex; align-items:center; gap:10px;}
+.brand svg{width:26px; height:26px; color:var(--accent);}
+.brand h1{font-size:21px; font-weight:800; letter-spacing:-0.01em;}
+.brand .tag{font-size:12px; color:var(--muted); margin-top:1px;}
+.project-picker{display:flex; align-items:center; gap:9px;}
+.project-picker label{font-size:11px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:.04em;}
+.project-picker select{padding:9px 12px; border-radius:9px; border:1px solid var(--hair); background:var(--surface); color:var(--ink); font-size:13px; font-weight:600; min-width:220px;}
+
+.hero-card{background:var(--surface); border:1px solid var(--hair); border-radius:16px; padding:22px 24px; margin-bottom:18px; box-shadow:var(--shadow);}
+.hero-head{display:flex; align-items:center; gap:12px; margin-bottom:16px;}
+.hero-icon{width:38px; height:38px; border-radius:10px; background:var(--accent-soft); color:var(--accent); display:flex; align-items:center; justify-content:center; flex:none;}
+.hero-icon svg{width:20px; height:20px;}
+.hero-head h2{font-size:18px; font-weight:700;}
+.hero-head p{font-size:12.5px; color:var(--muted); margin-top:2px;}
+.stat-row{display:flex; gap:clamp(20px,5vw,52px); flex-wrap:wrap; padding-top:6px;}
+.stat-row .stat{display:flex; flex-direction:column; gap:2px;}
+.stat-row .n{font-size:30px; font-weight:800; font-variant-numeric:tabular-nums; line-height:1;}
+.stat-row .n.good{color:var(--good);} .stat-row .n.bad{color:var(--critical);}
+.stat-row .l{font-size:11.5px; color:var(--muted); font-weight:700; text-transform:uppercase; letter-spacing:.03em;}
+
+/* ---------- Tabs ---------- */
+.tabcard{background:var(--surface); border:1px solid var(--hair); border-radius:16px; overflow:hidden; box-shadow:var(--shadow);}
+.toptabs{display:flex; gap:4px; padding:0 20px; border-bottom:1px solid var(--hair);}
+.toptab{border:none; background:none; color:var(--ink-2); font-size:13.5px; font-weight:700; padding:15px 6px; display:flex; align-items:center; gap:8px; border-bottom:2px solid transparent; margin-right:26px;}
+.toptab svg{width:16px; height:16px;}
+.toptab.active{color:var(--accent); border-color:var(--accent);}
+.toptab .count{background:var(--surface-2); color:var(--ink-2); border-radius:99px; font-size:11px; padding:1px 7px; font-weight:700;}
+.tabcard-body{padding:22px 24px 26px;}
+
+/* ---------- Test Writer ---------- */
+.writer-grid{display:grid; grid-template-columns:1fr 1fr; gap:20px; align-items:start;}
+@media (max-width:920px){.writer-grid{grid-template-columns:1fr;}}
+.field{display:flex; flex-direction:column; gap:6px; margin-bottom:14px;}
+.field label{font-size:11.5px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:.04em;}
+.field input[type="text"], .field select, .field textarea{
+  padding:10px 11px; border-radius:9px; border:1px solid var(--hair); background:var(--surface-2); color:var(--ink); font-size:13.5px; font-family:inherit;
+}
+.field textarea{resize:vertical; min-height:78px; line-height:1.5;}
+.url-row{display:flex; gap:8px;}
+.url-row input{flex:1;}
+.demo-links{display:flex; gap:6px; flex-wrap:wrap; margin-top:6px;}
+.demo-chip{border:1px solid var(--hair); background:var(--surface-2); color:var(--ink-2); font-size:11.5px; font-weight:600; padding:5px 10px; border-radius:99px;}
+.demo-chip:hover{border-color:var(--accent); color:var(--accent);}
+
+.mock-browser{border:1px solid var(--hair); border-radius:12px; overflow:hidden; background:var(--surface-2);}
+.mock-chrome{display:flex; align-items:center; gap:8px; padding:9px 12px; background:var(--surface); border-bottom:1px solid var(--hair);}
+.mock-dots{display:flex; gap:5px;}
+.mock-dots span{width:8px; height:8px; border-radius:50%; background:var(--hair);}
+.mock-url{flex:1; font-family:var(--mono); font-size:11px; color:var(--ink-2); background:var(--surface-2); border-radius:6px; padding:4px 9px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+.mock-canvas{padding:16px; min-height:210px;}
+.mock-placeholder{display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px; min-height:178px; color:var(--muted); font-size:12px;}
+.mock-placeholder svg{width:26px; height:26px;}
+
+.gherkin-box{border:1px solid var(--hair); border-radius:12px; background:var(--surface-2); padding:14px 16px; font-family:var(--mono); font-size:12.5px; line-height:1.75; max-height:420px; overflow-y:auto;}
+.gh-feature{color:var(--ai); font-weight:700;}
+.gh-scenario{color:var(--accent); font-weight:700; margin-top:10px; display:block;}
+.gh-kw{color:var(--good); font-weight:700;}
+.gh-kw.and{color:var(--serious);}
+.gh-step{color:var(--ink);}
+.gh-check{margin-right:7px;}
+
+/* ---------- Suite cards (runner) ---------- */
+.suite-toolbar{display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-bottom:16px;}
+.suite-toolbar .actions{display:flex; gap:10px;}
+.suite-card{border:1px solid var(--hair); border-radius:12px; padding:15px 16px; background:var(--surface-2); margin-bottom:12px;}
+.suite-card-top{display:flex; align-items:flex-start; justify-content:space-between; gap:10px;}
+.suite-name{display:flex; align-items:center; gap:9px; font-size:14.5px; font-weight:700;}
+.suite-check{width:16px; height:16px; flex:none;}
+.suite-actions{display:flex; align-items:center; gap:8px;}
+.status-pill{font-size:11px; font-weight:700; padding:3px 10px; border-radius:99px;}
+.status-pill.unknown{background:var(--surface); color:var(--muted); border:1px solid var(--hair);}
+.status-pill.passed{background:var(--good-soft); color:var(--good);}
+.status-pill.failed{background:var(--critical-soft); color:var(--critical);}
+.status-pill.running{background:var(--accent-soft); color:var(--accent);}
+.suite-counts{display:flex; align-items:center; gap:16px; margin-top:9px; font-size:12.5px;}
+.suite-counts .c-pass{color:var(--good); font-weight:600;}
+.suite-counts .c-fail{color:var(--critical); font-weight:600;}
+.suite-counts .c-total{color:var(--muted);}
+.suite-meta{font-size:11.5px; color:var(--muted); margin-top:6px;}
+
+/* ---------- Agent status ---------- */
+.agent-panel{border:1px solid var(--hair); border-radius:12px; background:var(--surface-2); padding:16px; margin-top:18px;}
+.agent-head{display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:10px;}
+.agent-head h4{font-size:13px; font-weight:700; display:flex; align-items:center; gap:8px;}
+.agent-progress{height:6px; border-radius:99px; background:var(--hair); overflow:hidden; margin-bottom:14px;}
+.agent-progress-fill{height:100%; background:var(--accent); border-radius:99px; transition:width .3s ease;}
+.agent-log{display:flex; flex-direction:column; gap:0; max-height:340px; overflow-y:auto;}
+.agent-line{display:flex; gap:10px; align-items:flex-start; padding:6px 0; border-bottom:1px dashed var(--hair); opacity:0; transform:translateY(3px); transition:opacity .25s, transform .25s;}
+.agent-line.show{opacity:1; transform:translateY(0);}
+.agent-line:last-child{border-bottom:none;}
+.agent-icon{width:18px; height:18px; flex:none; margin-top:1px; color:var(--muted);}
+.agent-icon.pass{color:var(--good);} .agent-icon.fail{color:var(--critical);} .agent-icon.run{color:var(--accent);}
+.agent-text{font-size:12.5px; font-family:var(--mono); color:var(--ink-2); line-height:1.5;}
+.agent-text b{color:var(--ink);}
+.agent-text .kw{color:var(--good); font-weight:700;}
+
+/* ---------- History ---------- */
+.history-table{width:100%; border-collapse:collapse; font-size:13px;}
+.history-table th{text-align:left; font-size:11px; text-transform:uppercase; letter-spacing:.04em; color:var(--muted); font-weight:700; padding:8px 10px; border-bottom:1px solid var(--hair);}
+.history-table td{padding:11px 10px; border-bottom:1px solid var(--hair); vertical-align:middle;}
+.history-table tr.clickable{cursor:pointer;}
+.history-table tr.clickable:hover{background:var(--surface-2);}
+.hist-result{display:flex; align-items:center; gap:6px; font-weight:700;}
+.hist-result.pass{color:var(--good);} .hist-result.fail{color:var(--critical);}
+.hist-result svg{width:14px; height:14px;}
+.empty-note{padding:40px 10px; text-align:center; color:var(--muted); font-size:13px;}
+
+/* ---------- Evidence drawer ---------- */
+.overlay{position:fixed; inset:0; background:rgba(11,11,11,.42); z-index:40; opacity:0; pointer-events:none; transition:opacity .2s;}
+.overlay.show{opacity:1; pointer-events:auto;}
+.drawer{
+  position:fixed; top:0; right:0; height:100%; width:min(520px,94vw); background:var(--surface);
+  border-left:1px solid var(--hair); z-index:41; transform:translateX(100%); transition:transform .26s ease;
+  display:flex; flex-direction:column; box-shadow:-8px 0 30px rgba(0,0,0,.15);
+}
+.drawer.show{transform:translateX(0);}
+.drawer-head{display:flex; align-items:flex-start; justify-content:space-between; gap:10px; padding:20px 20px 14px; border-bottom:1px solid var(--hair);}
+.drawer-head .ai-tag{display:flex; align-items:center; gap:7px; color:var(--accent); font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:.05em;}
+.drawer-head .ai-tag svg{width:15px; height:15px;}
+.drawer-head h3{font-size:17px; font-weight:700; margin-top:4px;}
+.drawer-head .sub{font-size:12px; color:var(--muted); margin-top:2px;}
+.drawer-close{border:none; background:var(--surface-2); width:28px; height:28px; border-radius:8px; display:flex; align-items:center; justify-content:center; color:var(--ink-2); flex:none;}
+.drawer-body{flex:1; overflow-y:auto; padding:18px 20px 24px;}
+.evidence-step{border:1px solid var(--hair); border-radius:10px; padding:12px 14px; margin-bottom:10px; background:var(--surface-2);}
+.evidence-step.fail{border-color:var(--critical); background:var(--critical-soft);}
+.evidence-step-head{display:flex; align-items:center; gap:8px; font-size:12.5px; font-family:var(--mono); margin-bottom:6px;}
+.evidence-step-head svg{width:14px; height:14px; flex:none;}
+.evidence-step-head.pass svg{color:var(--good);} .evidence-step-head.fail svg{color:var(--critical);}
+.evidence-time{margin-left:auto; font-size:10.5px; color:var(--muted);}
+.evidence-err{font-size:12px; color:var(--critical); font-family:var(--mono); margin-top:6px; padding:6px 8px; background:var(--surface); border-radius:6px;}
+.drawer-footer{display:flex; gap:10px; padding:14px 20px 20px; border-top:1px solid var(--hair);}
+.drawer-footer .btn{flex:1; justify-content:center;}
+
+.toast{
+  position:fixed; bottom:26px; left:50%; transform:translateX(-50%) translateY(20px); background:var(--ink); color:var(--plane);
+  padding:12px 20px; border-radius:10px; font-size:13px; font-weight:600; z-index:60; opacity:0; transition:opacity .25s, transform .25s;
+  display:flex; align-items:center; gap:8px; pointer-events:none; box-shadow:var(--shadow);
+}
+.toast.show{opacity:1; transform:translateX(-50%) translateY(0);}
+.toast svg{width:15px; height:15px; color:var(--good);}
+</style>
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="wrap" id="root"></div>
+</div>
+<div class="overlay" id="overlay" onclick="closeDrawer()"></div>
+<div class="drawer" id="drawer"></div>
+<div class="toast" id="toast"></div>
+<script>
+/* ================= Icons ================= */
+function ic(name){
+  const s = 'width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"';
+  const P = {
+    robot:'<rect x="4" y="8" width="16" height="11" rx="2.5"/><path d="M12 8V4"/><circle cx="12" cy="3" r="1.3" fill="currentColor" stroke="none"/><circle cx="9" cy="13.5" r="1.2" fill="currentColor" stroke="none"/><circle cx="15" cy="13.5" r="1.2" fill="currentColor" stroke="none"/><path d="M2 12h2"/><path d="M20 12h2"/>',
+    write:'<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/>',
+    play:'<path d="M6 4l14 8-14 8z"/>',
+    filter:'<path d="M4 5h16"/><path d="M7 12h10"/><path d="M10 19h4"/>',
+    check:'<path d="M20 6L9 17l-5-5"/>',
+    critx:'<circle cx="12" cy="12" r="9"/><path d="M15 9l-6 6"/><path d="M9 9l6 6"/>',
+    warn:'<path d="M12 3l10 18H2z"/><path d="M12 10v4"/><path d="M12 17h.01"/>',
+    clock:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/>',
+    download:'<path d="M12 3v13"/><path d="M7 11l5 5 5-5"/><path d="M5 21h14"/>',
+    sparkle:'<path d="M12 2l1.8 5.4L19 9l-5.2 1.6L12 16l-1.8-5.4L5 9l5.2-1.6z"/><path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z"/>',
+    refresh:'<path d="M3 12a9 9 0 0 1 15.3-6.4L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-15.3 6.4L3 16"/><path d="M3 21v-5h5"/>',
+    camera:'<path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13.5" r="3.3"/>',
+    link:'<path d="M9 15l6-6"/><path d="M13 5.5l1.5-1.5a3.5 3.5 0 0 1 5 5L18 10.5"/><path d="M11 13.5l-1.5 1.5a3.5 3.5 0 0 1-5-5L6 8.5"/>',
+    file:'<path d="M6 2h9l5 5v15H6z"/><path d="M14 2v6h6"/><path d="M9 13h6"/><path d="M9 17h6"/>',
+    eye:'<path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/>',
+    close:'<path d="M18 6L6 18"/><path d="M6 6l12 12"/>',
+    chevron:'<path d="M9 6l6 6-6 6"/>',
+    analytics:'<path d="M4 20V10"/><path d="M11 20V4"/><path d="M18 20v-7"/>',
+  };
+  return `<svg ${s}>${P[name]||''}</svg>`;
+}
+
+/* ================= Seeded RNG ================= */
+function hash(str){ let h=1779033703^str.length; for(let i=0;i<str.length;i++){ h=Math.imul(h^str.charCodeAt(i),3432918353); h=h<<13|h>>>19; } return ()=>{ h=Math.imul(h^(h>>>16),2246822507); h=Math.imul(h^(h>>>13),3266489909); h^=h>>>16; return (h>>>0)/4294967296; }; }
+function seeded(str){ const r=hash(str); return ()=>r(); }
+
+/* ================= Demo pages (URL → mock screenshot + suggested Gherkin) ================= */
+const DEMO_PAGES = {
+  'https://app.logicnova.io/login': { kind:'login', label:'Login Page' },
+  'https://app.logicnova.io/jobs': { kind:'jobs', label:'Job Listings' },
+  'https://app.logicnova.io/checkout': { kind:'checkout', label:'Checkout Flow' },
+  'https://app.logicnova.io/profile': { kind:'profile', label:'Profile Settings' },
+};
+function pageKindFor(url){
+  if (DEMO_PAGES[url]) return DEMO_PAGES[url].kind;
+  const u = (url||'').toLowerCase();
+  if (u.includes('login') || u.includes('signin')) return 'login';
+  if (u.includes('job') || u.includes('search')) return 'jobs';
+  if (u.includes('checkout') || u.includes('cart') || u.includes('pay')) return 'checkout';
+  if (u.includes('profile') || u.includes('setting') || u.includes('account')) return 'profile';
+  return 'generic';
+}
+
+const GHERKIN_LIBRARY = {
+  login: {
+    feature:'User Authentication',
+    scenarios:[
+      {name:'Successful login with valid credentials', steps:[
+        ['Given','the user is on the login page'],
+        ['When','the user enters a registered email and correct password'],
+        ['And','clicks the "Sign In" button'],
+        ['Then','the user is redirected to the dashboard'],
+      ]},
+      {name:'Login fails with invalid password', steps:[
+        ['Given','the user is on the login page'],
+        ['When','the user enters a registered email and an incorrect password'],
+        ['And','clicks the "Sign In" button'],
+        ['Then','an "Invalid credentials" error message is displayed'],
+      ]},
+      {name:'Login blocked after repeated failures', steps:[
+        ['Given','the user has failed to log in 4 times in a row'],
+        ['When','the user submits a 5th incorrect attempt'],
+        ['Then','the account is temporarily locked'],
+        ['And','a lockout notice with a retry time is displayed'],
+      ]},
+    ],
+  },
+  jobs: {
+    feature:'Job Search & Listings',
+    scenarios:[
+      {name:'Filter jobs by keyword', steps:[
+        ['Given','the user is on the job listings page'],
+        ['When','the user types "Product Manager" into the search box'],
+        ['Then','only listings matching "Product Manager" are shown'],
+      ]},
+      {name:'Apply to a job posting', steps:[
+        ['Given','the user has an active profile'],
+        ['When','the user opens a job listing and clicks "Apply"'],
+        ['Then','the application is submitted'],
+        ['And','the listing shows an "Applied" badge'],
+      ]},
+      {name:'Empty state for no matching jobs', steps:[
+        ['Given','the user is on the job listings page'],
+        ['When','the user searches for a term with no matches'],
+        ['Then','an empty-state message is displayed'],
+      ]},
+    ],
+  },
+  checkout: {
+    feature:'Checkout Flow',
+    scenarios:[
+      {name:'Complete checkout with a valid card', steps:[
+        ['Given','the cart contains at least one item'],
+        ['When','the user enters valid payment details'],
+        ['And','clicks "Place Order"'],
+        ['Then','an order confirmation is displayed'],
+      ]},
+      {name:'Checkout blocked with an expired card', steps:[
+        ['Given','the cart contains at least one item'],
+        ['When','the user enters a card with a past expiry date'],
+        ['Then','a "Card expired" validation error is shown'],
+        ['And','the order is not submitted'],
+      ]},
+      {name:'Apply a valid promo code', steps:[
+        ['Given','the user is on the checkout page'],
+        ['When','the user enters a valid promo code'],
+        ['Then','the order total updates with the discount applied'],
+      ]},
+    ],
+  },
+  profile: {
+    feature:'Profile Settings',
+    scenarios:[
+      {name:'Update display name', steps:[
+        ['Given','the user is on the profile settings page'],
+        ['When','the user changes the display name and clicks "Save"'],
+        ['Then','the updated name is reflected across the app'],
+      ]},
+      {name:'Reject an invalid email format', steps:[
+        ['Given','the user is on the profile settings page'],
+        ['When','the user enters an email without an "@" symbol'],
+        ['Then','a validation error is shown'],
+        ['And','the change is not saved'],
+      ]},
+    ],
+  },
+  generic: {
+    feature:'Page Functional Checks',
+    scenarios:[
+      {name:'Page loads with primary elements visible', steps:[
+        ['Given','the user navigates to the page URL'],
+        ['Then','the page loads within 3 seconds'],
+        ['And','the primary navigation and content are visible'],
+      ]},
+      {name:'Primary call-to-action is interactive', steps:[
+        ['Given','the user is on the page'],
+        ['When','the user clicks the primary call-to-action'],
+        ['Then','the expected next screen or state is shown'],
+      ]},
+    ],
+  },
+};
+
+/* ================= Mock screenshot renderer ================= */
+function mockScreenshot(kind, url, size){
+  size = size||'lg';
+  const inner = {
+    login: `<div style="max-width:200px;margin:0 auto;display:flex;flex-direction:column;gap:8px;">
+      <div style="height:9px;width:56%;margin:0 auto;background:var(--hair);border-radius:4px;"></div>
+      <div style="height:26px;background:var(--surface);border:1px solid var(--hair);border-radius:6px;"></div>
+      <div style="height:26px;background:var(--surface);border:1px solid var(--hair);border-radius:6px;"></div>
+      <div style="height:26px;background:var(--accent);border-radius:6px;margin-top:4px;"></div>
+    </div>`,
+    jobs: `<div style="display:flex;flex-direction:column;gap:7px;">
+      <div style="height:22px;background:var(--surface);border:1px solid var(--hair);border-radius:6px;width:70%;"></div>
+      ${[0,1,2].map(()=>`<div style="display:flex;gap:8px;align-items:center;padding:7px;background:var(--surface);border:1px solid var(--hair);border-radius:6px;">
+        <div style="width:26px;height:26px;border-radius:6px;background:var(--hair);flex:none;"></div>
+        <div style="flex:1;display:flex;flex-direction:column;gap:5px;"><div style="height:7px;width:60%;background:var(--hair);border-radius:3px;"></div><div style="height:6px;width:35%;background:var(--hair);border-radius:3px;"></div></div>
+      </div>`).join('')}
+    </div>`,
+    checkout: `<div style="display:flex;gap:10px;">
+      <div style="flex:1;display:flex;flex-direction:column;gap:7px;">
+        <div style="height:9px;width:50%;background:var(--hair);border-radius:4px;"></div>
+        <div style="height:22px;background:var(--surface);border:1px solid var(--hair);border-radius:6px;"></div>
+        <div style="height:22px;background:var(--surface);border:1px solid var(--hair);border-radius:6px;"></div>
+        <div style="height:22px;background:var(--surface);border:1px solid var(--hair);border-radius:6px;width:60%;"></div>
+      </div>
+      <div style="width:34%;display:flex;flex-direction:column;gap:6px;background:var(--surface);border:1px solid var(--hair);border-radius:6px;padding:8px;">
+        <div style="height:6px;background:var(--hair);border-radius:3px;"></div>
+        <div style="height:6px;background:var(--hair);border-radius:3px;width:70%;"></div>
+        <div style="height:20px;background:var(--accent);border-radius:5px;margin-top:6px;"></div>
+      </div>
+    </div>`,
+    profile: `<div style="display:flex;flex-direction:column;gap:8px;">
+      <div style="display:flex;gap:8px;align-items:center;"><div style="width:34px;height:34px;border-radius:50%;background:var(--hair);"></div><div style="height:8px;width:96px;background:var(--hair);border-radius:4px;"></div></div>
+      <div style="height:22px;background:var(--surface);border:1px solid var(--hair);border-radius:6px;"></div>
+      <div style="height:22px;background:var(--surface);border:1px solid var(--hair);border-radius:6px;"></div>
+      <div style="height:22px;background:var(--accent);border-radius:6px;width:80px;margin-top:4px;"></div>
+    </div>`,
+    generic: `<div style="display:flex;flex-direction:column;gap:8px;">
+      <div style="height:16px;width:40%;background:var(--hair);border-radius:4px;"></div>
+      <div style="height:9px;width:85%;background:var(--hair);border-radius:4px;"></div>
+      <div style="height:9px;width:70%;background:var(--hair);border-radius:4px;"></div>
+      <div style="height:60px;background:var(--surface);border:1px solid var(--hair);border-radius:6px;margin-top:4px;"></div>
+    </div>`,
+  }[kind] || '';
+  const h = size==='sm' ? 92 : 210;
+  return `<div class="mock-browser">
+    <div class="mock-chrome"><span class="mock-dots"><span></span><span></span><span></span></span><span class="mock-url">${url||'about:blank'}</span></div>
+    <div class="mock-canvas" style="min-height:${h}px;">${inner}</div>
+  </div>`;
+}
+
+/* ================= Seed data: projects, suites, scenarios ================= */
+let scenarioSeq = 0;
+function makeScenarios(kind){
+  const lib = GHERKIN_LIBRARY[kind] || GHERKIN_LIBRARY.generic;
+  return lib.scenarios.map(sc => ({ id:'sc'+(scenarioSeq++), name:sc.name, steps: sc.steps.map(([kw,text])=>({kw,text})) }));
+}
+function makeSuite(name, kind, url, lastRun, failMode){
+  const scenarios = makeScenarios(kind);
+  let passed=0, failed=0;
+  const rnd = seeded(name+'|seed');
+  scenarios.forEach(sc=>{
+    if (lastRun===null){ sc.lastResult=null; return; }
+    const rate = failMode==='mixed'?0.35:failMode==='fail'?0.7:0.05;
+    const fail = rnd() < rate;
+    sc.lastResult = fail?'failed':'passed';
+    fail?failed++:passed++;
+  });
+  return {
+    id:'suite-'+name.toLowerCase().replace(/[^a-z0-9]+/g,'-'),
+    name, kind, url,
+    scenarios,
+    passed, failed, total: scenarios.length,
+    status: lastRun===null ? 'unknown' : (failed>0?'failed':'passed'),
+    lastRun,
+  };
+}
+
+const PROJECTS = {
+  'LogicNova Job Portal': {
+    url:'https://app.logicnova.io/login',
+    suites: [
+      makeSuite('Login Authentication Tests','login','https://app.logicnova.io/login','2 hours ago','mixed'),
+      makeSuite('Job Search & Listings','jobs','https://app.logicnova.io/jobs','1 day ago','pass'),
+      makeSuite('Checkout Flow Regression','checkout','https://app.logicnova.io/checkout',null),
+    ],
+  },
+  'Fleet Ops Console': {
+    url:'https://app.logicnova.io/profile',
+    suites: [
+      makeSuite('Profile Settings Tests','profile','https://app.logicnova.io/profile','3 days ago','mixed'),
+      makeSuite('Smoke Tests','generic','https://ops.fleetconsole.io/dashboard','5 hours ago','pass'),
+    ],
+  },
+};
+
+/* Seed run history so the History tab isn't empty on first load */
+let historySeq=0;
+const HISTORY = [];
+function seedHistoryFor(projectName){
+  const proj = PROJECTS[projectName];
+  proj.suites.filter(s=>s.lastRun).forEach(s=>{
+    HISTORY.push({
+      id:'run-'+(historySeq++), project:projectName, suiteId:s.id, suiteName:s.name, kind:s.kind,
+      date:s.lastRun, passed:s.passed, failed:s.failed, total:s.total,
+      duration:(8+Math.floor(seeded(s.id+'dur')()*40))+'s', triggeredBy:'Mahesh',
+      steps: evidenceFromSuite(s),
+    });
+  });
+}
+function evidenceFromSuite(suite){
+  return suite.scenarios.map(sc=>({
+    scenarioName: sc.name,
+    result: sc.lastResult,
+    steps: sc.steps.map((st,i)=>({
+      kw:st.kw, text:st.text,
+      status: sc.lastResult==='failed' && i===sc.steps.length-1 ? 'fail' : 'pass',
+    })),
+    error: sc.lastResult==='failed' ? errorFor(sc) : null,
+  }));
+}
+function errorFor(sc){
+  const rnd = seeded(sc.id+'err');
+  const msgs = [
+    `AssertionError: expected element matching selector not found within 5000ms`,
+    `TimeoutError: waiting for navigation exceeded 5000ms`,
+    `AssertionError: expected text "Success" but received "Error"`,
+    `ElementNotInteractableError: target element is not clickable at this point`,
+  ];
+  return msgs[Math.floor(rnd()*msgs.length)];
+}
+Object.keys(PROJECTS).forEach(seedHistoryFor);
+
+/* ================= State ================= */
+const state = {
+  project: Object.keys(PROJECTS)[0],
+  topTab: 'writer', // 'writer' | 'runner' | 'history'
+  writer: { url:'https://app.logicnova.io/login', prompt:'', stage:'idle', generated:null, saveAsNew:false, newName:'' },
+  runner: { selected:new Set(), running:false, lastRunLog:null },
+};
+function currentProject(){ return PROJECTS[state.project]; }
+
+/* ================= Actions: nav ================= */
+function setProject(name){ state.project=name; state.runner.selected.clear(); render(); }
+function setTopTab(tab){ state.topTab=tab; render(); }
+function setUrl(v){ state.writer.url=v; render(); }
+function pickDemoUrl(url){ state.writer.url=url; render(); }
+function setPrompt(v){ state.writer.prompt=v; }
+
+/* ================= Header / stats ================= */
+function aggStats(){
+  const suites = currentProject().suites;
+  const passed = suites.reduce((s,x)=>s+x.passed,0);
+  const failed = suites.reduce((s,x)=>s+x.failed,0);
+  const total = suites.reduce((s,x)=>s+x.total,0);
+  const rate = total ? Math.round(passed/total*1000)/10 : 0;
+  return {passed, failed, total, rate};
+}
+
+function renderShell(){
+  const stats = aggStats();
+  return `
+  <div class="topbar">
+    <div class="brand">${ic('robot')}<div><h1>Test Agent</h1><div class="tag">Autonomous test generation, execution and quality assurance powered by AI</div></div></div>
+    <div class="project-picker">
+      <label>Project</label>
+      <select onchange="setProject(this.value)">
+        ${Object.keys(PROJECTS).map(p=>`<option value="${p}" ${state.project===p?'selected':''}>${p}</option>`).join('')}
+      </select>
+    </div>
+  </div>
+  <div class="hero-card">
+    <div class="stat-row">
+      <div class="stat"><div class="n good">${stats.passed}</div><div class="l">Tests Passed</div></div>
+      <div class="stat"><div class="n bad">${stats.failed}</div><div class="l">Tests Failed</div></div>
+      <div class="stat"><div class="n">${stats.rate}%</div><div class="l">Success Rate</div></div>
+      <div class="stat"><div class="n">${stats.total}</div><div class="l">Total Tests</div></div>
+      <div class="stat"><div class="n">${ic('analytics')}</div><div class="l">Analytics</div></div>
+    </div>
+  </div>
+  <div class="tabcard">
+    <div class="toptabs">
+      <button class="toptab ${state.topTab==='writer'?'active':''}" onclick="setTopTab('writer')">${ic('write')} Test Writer</button>
+      <button class="toptab ${state.topTab==='runner'?'active':''}" onclick="setTopTab('runner')">${ic('play')} Test Runner <span class="count">${currentProject().suites.length}</span></button>
+      <button class="toptab ${state.topTab==='history'?'active':''}" onclick="setTopTab('history')">${ic('clock')} History <span class="count">${HISTORY.filter(h=>h.project===state.project).length}</span></button>
+    </div>
+    <div class="tabcard-body">
+      ${state.topTab==='writer'?renderWriter():state.topTab==='runner'?renderRunner():renderHistory()}
+    </div>
+  </div>`;
+}
+
+/* ================= Shared: animated agent log ================= */
+function agentLineHtml(l, i){
+  const iconName = l.icon==='pass'?'check':l.icon==='fail'?'critx':l.icon==='warn'?'warn':'refresh';
+  return `<div class="agent-line" data-i="${i}"><span class="agent-icon ${l.icon}">${ic(iconName)}</span><span class="agent-text">${l.html}</span></div>`;
+}
+function animateAgentLog(containerId, lines, opts){
+  opts = opts||{};
+  const log = document.getElementById(containerId);
+  if (!log) return;
+  log.innerHTML = lines.map(agentLineHtml).join('');
+  const els = [...log.querySelectorAll('.agent-line')];
+  const stagger = opts.stagger||230;
+  els.forEach((el,i)=>{
+    setTimeout(()=>{ el.classList.add('show'); log.scrollTop = log.scrollHeight; }, stagger*(i+1));
+  });
+  if (opts.onDone) setTimeout(opts.onDone, stagger*(els.length+1) + (opts.doneDelay||350));
+}
+
+/* ================= Test Writer ================= */
+function renderWriter(){
+  const w = state.writer;
+  const kind = pageKindFor(w.url);
+  const pageLabel = (DEMO_PAGES[w.url]&&DEMO_PAGES[w.url].label) || 'Custom Page';
+
+  const formHtml = `
+  <div class="writer-grid">
+    <div>
+      <div class="field">
+        <label>Target URL</label>
+        <div class="url-row">
+          <input type="text" value="${w.url}" placeholder="https://your-app.com/page" oninput="setUrl(this.value)"/>
+          <button class="btn small" onclick="captureScreenshot(this)">${ic('camera')} Capture</button>
+        </div>
+        <div class="demo-links">
+          ${Object.keys(DEMO_PAGES).map(u=>`<button class="demo-chip" onclick="pickDemoUrl('${u}')">${DEMO_PAGES[u].label}</button>`).join('')}
+        </div>
+      </div>
+      <div class="field">
+        <label>What should be tested?</label>
+        <textarea placeholder="e.g. Test the login flow including invalid credentials and account lockout" oninput="setPrompt(this.value)">${w.prompt}</textarea>
+      </div>
+      <button class="btn ai block" ${w.stage==='scanning'?'disabled':''} onclick="generateTests()">${ic('sparkle')} ${w.stage==='scanning'?'Generating…':'Generate Test Cases'}</button>
+    </div>
+    <div>
+      <div class="field" style="margin-bottom:8px;">
+        <label>Screenshot preview · ${pageLabel}</label>
+      </div>
+      ${mockScreenshot(kind, w.url)}
+    </div>
+  </div>`;
+
+  const scanHtml = w.stage==='scanning' ? `
+  <div class="agent-panel">
+    <div class="agent-head"><h4>${ic('sparkle')} AI Test Writer</h4></div>
+    <div class="agent-log" id="writer-log"></div>
+  </div>` : '';
+
+  const resultHtml = (w.stage==='done' && w.generated) ? renderGeneratedGherkin() : '';
+
+  return formHtml + scanHtml + resultHtml;
+}
+
+function generateTests(){
+  const w = state.writer;
+  w.stage = 'scanning';
+  w.generated = null;
+  render();
+  const kind = pageKindFor(w.url);
+  const lib = GHERKIN_LIBRARY[kind] || GHERKIN_LIBRARY.generic;
+  const promptText = w.prompt.trim() || '(no prompt provided — inferring intent from the screenshot)';
+  const lines = [
+    {icon:'run', html:`Capturing screenshot of <b>${w.url}</b>`},
+    {icon:'run', html:`Detecting interactive elements — found ${6+lib.scenarios.length*2} candidate elements`},
+    {icon:'run', html:`Cross-referencing prompt: <b>"${escapeHtml(promptText)}"</b>`},
+    {icon:'run', html:`Mapping elements to user flows for <b>${lib.feature}</b>`},
+    {icon:'pass', html:`Drafted ${lib.scenarios.length} Gherkin scenario${lib.scenarios.length===1?'':'s'}`},
+  ];
+  animateAgentLog('writer-log', lines, {stagger:260, onDone:()=>{
+    w.stage='done';
+    w.generated = { feature: lib.feature, scenarios: makeScenarios(kind), kind };
+    render();
+  }});
+}
+function escapeHtml(s){ return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function captureScreenshot(btn){
+  const svg = btn.querySelector('svg'); if (svg) svg.classList.add('spin');
+  showToast(ic('camera')+' Screenshot captured');
+  setTimeout(()=>render(), 500);
+}
+
+/* ================= Test Runner ================= */
+function toggleSelect(id){
+  const sel = state.runner.selected;
+  sel.has(id) ? sel.delete(id) : sel.add(id);
+  render();
+}
+function renderRunner(){
+  const proj = currentProject();
+  const running = state.runner.running;
+  return `
+  <div class="suite-toolbar">
+    <div class="section-note" style="margin:0;font-size:12.5px;color:var(--muted);">Manage test execution for <b style="color:var(--ink);">${state.project}</b></div>
+    <div class="actions">
+      <button class="btn primary" ${running?'disabled':''} onclick="runSuites('all')">${ic('play')} Run All Tests</button>
+      <button class="btn" ${running||state.runner.selected.size===0?'disabled':''} onclick="runSuites('selected')">${ic('filter')} Run Selected (${state.runner.selected.size})</button>
+    </div>
+  </div>
+  ${proj.suites.map(s=>suiteCardHtml(s)).join('')}
+  <div id="agent-run-panel">${(!running && state.runner.lastRunLog) ? staticAgentPanelHtml(state.runner.lastRunLog) : ''}</div>
+  `;
+}
+
+function staticAgentPanelHtml(log){
+  return `
+  <div class="agent-panel">
+    <div class="agent-head"><h4>${ic('robot')} Agent Status</h4><span class="status-pill ${log.failed>0?'failed':'passed'}">${log.failed>0?'Completed with failures':'Completed'}</span></div>
+    <div class="agent-log">${log.lines.map((l,i)=>agentLineHtml(l,i).replace('class="agent-line"','class="agent-line show"')).join('')}</div>
+  </div>`;
+}
+
+/* ================= History ================= */
+function renderHistory(){
+  const runs = HISTORY.filter(h=>h.project===state.project);
+  if (runs.length===0) return `<div class="empty-note">No test runs yet for ${state.project}. Run a suite from the Test Runner tab.</div>`;
+  return `
+  <table class="history-table">
+    <thead><tr><th>Run</th><th>Suite</th><th>Result</th><th>Duration</th><th>Triggered by</th><th>When</th></tr></thead>
+    <tbody>
+      ${runs.map(r=>`
+      <tr class="clickable" onclick="openEvidence('${r.id}')">
+        <td style="font-family:var(--mono);color:var(--muted);">${r.id}</td>
+        <td>${r.suiteName}</td>
+        <td>
+          <span class="hist-result ${r.failed>0?'fail':'pass'}">${r.failed>0?ic('critx'):ic('check')} ${r.passed}/${r.total} passed</span>
+        </td>
+        <td>${r.duration}</td>
+        <td>${r.triggeredBy}</td>
+        <td>${r.date}</td>
+      </tr>`).join('')}
+    </tbody>
+  </table>`;
+}
+
+/* ================= Evidence drawer ================= */
+function openEvidence(runId){
+  const run = HISTORY.find(h=>h.id===runId);
+  if (!run) return;
+  document.getElementById('overlay').classList.add('show');
+  const drawer = document.getElementById('drawer');
+  drawer.innerHTML = `
+    <div class="drawer-head">
+      <div>
+        <div class="ai-tag">${ic('eye')} Run Evidence</div>
+        <h3>${run.suiteName}</h3>
+        <div class="sub">${run.id} · ${run.project} · ${run.date} · ${run.duration}</div>
+      </div>
+      <button class="drawer-close" onclick="closeDrawer()">${ic('close')}</button>
+    </div>
+    <div class="drawer-body">
+      ${run.steps.map(sc=>`
+        <div class="evidence-step ${sc.result==='failed'?'fail':''}">
+          <div class="evidence-step-head ${sc.result==='failed'?'fail':'pass'}">${sc.result==='failed'?ic('critx'):ic('check')} <b>${sc.scenarioName}</b><span class="evidence-time">${run.date}</span></div>
+          ${sc.steps.map(st=>`<div style="font-size:12px;font-family:var(--mono);color:var(--ink-2);padding:2px 0;">${st.status==='fail'?ic('critx'):ic('check')} <span style="color:var(--good);font-weight:700;">${st.kw}</span> ${st.text}</div>`).join('')}
+          ${sc.error?`<div class="evidence-err">${sc.error}</div>${mockScreenshot(run.kind||'generic', '', 'sm')}`:''}
+        </div>`).join('')}
+    </div>
+    <div class="drawer-footer">
+      <button class="btn ghost" onclick="closeDrawer()">Close</button>
+      <button class="btn primary" onclick="downloadEvidence('${run.id}')">${ic('download')} Download Evidence</button>
+    </div>`;
+  drawer.classList.add('show');
+}
+function closeDrawer(){
+  document.getElementById('overlay').classList.remove('show');
+  document.getElementById('drawer').classList.remove('show');
+}
+function downloadEvidence(runId){
+  showToast(ic('check')+` Evidence bundle for ${runId} ready`);
+}
+
+let toastTimer=null;
+function showToast(html){
+  const t = document.getElementById('toast');
+  t.innerHTML = html;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(()=>t.classList.remove('show'), 2600);
+}
+
+function suiteCardHtml(s){
+  const sel = state.runner.selected.has(s.id);
+  return `
+  <div class="suite-card" id="card-${s.id}">
+    <div class="suite-card-top">
+      <div class="suite-name">
+        <input type="checkbox" class="suite-check" ${sel?'checked':''} onchange="toggleSelect('${s.id}')"/>
+        ${s.name}
+      </div>
+      <div class="suite-actions">
+        <span class="status-pill ${s.status}">${s.status==='unknown'?'Unknown':s.status==='passed'?'Passed':s.status==='failed'?'Failed':'Running'}</span>
+        <button class="btn small" onclick="runSuites('one','${s.id}')">${ic('play')} Run</button>
+      </div>
+    </div>
+    <div class="suite-counts">
+      <span class="c-pass">${ic('check')} ${s.passed} passed</span>
+      <span class="c-fail">${ic('critx')} ${s.failed} failed</span>
+      <span class="c-total">Total: ${s.total}</span>
+    </div>
+    <div class="suite-meta">${s.url} · ${s.lastRun ? 'Last run: '+s.lastRun : 'No recent runs'}</div>
+  </div>`;
+}
+
+function runSuites(mode, oneId){
+  const proj = currentProject();
+  let targets;
+  if (mode==='all') targets = proj.suites;
+  else if (mode==='one') targets = proj.suites.filter(s=>s.id===oneId);
+  else targets = proj.suites.filter(s=>state.runner.selected.has(s.id));
+  if (targets.length===0) return;
+  state.runner.running = true;
+  state.runner.lastRunLog = null;
+  render();
+  const panel = document.getElementById('agent-run-panel');
+  panel.innerHTML = `
+    <div class="agent-panel">
+      <div class="agent-head"><h4>${ic('robot')} Agent Status</h4><span class="status-pill running">Running</span></div>
+      <div class="agent-progress"><div class="agent-progress-fill" id="agent-progress-fill" style="width:0%;"></div></div>
+      <div class="agent-log" id="runner-log"></div>
+    </div>`;
+
+  const lines = [];
+  const stepResultsByScenario = [];
+  lines.push({icon:'run', html:`Launching headless browser session`});
+  targets.forEach(suite=>{
+    lines.push({icon:'run', html:`Navigating to <b>${suite.url}</b>`});
+    suite.scenarios.forEach(sc=>{
+      const rnd = seeded(sc.id+'|run|'+Date.now()+'|'+Math.random());
+      lines.push({icon:'run', html:`<b>Scenario:</b> ${sc.name}`});
+      const stepStatuses=[];
+      sc.steps.forEach((st,i)=>{
+        const isLast = i===sc.steps.length-1;
+        const fail = isLast && rnd() < 0.22;
+        stepStatuses.push({kw:st.kw, text:st.text, status: fail?'fail':'pass'});
+        lines.push({icon: fail?'fail':'pass', html:`&nbsp;&nbsp;<span class="kw">${st.kw}</span> ${st.text}`});
+      });
+      const scenarioFailed = stepStatuses.some(s=>s.status==='fail');
+      stepResultsByScenario.push({scenarioName:sc.name, result: scenarioFailed?'failed':'passed', steps:stepStatuses, error: scenarioFailed?errorFor(sc):null});
+    });
+  });
+  lines.push({icon:'pass', html:`Run complete`});
+
+  animateAgentLog('runner-log', lines, {stagger:130, onDone:()=>{
+    finishRun(targets, stepResultsByScenario, lines);
+  }});
+  const fill = document.getElementById('agent-progress-fill');
+  let p=0; const iv = setInterval(()=>{ p=Math.min(96,p+6); if(fill) fill.style.width=p+'%'; if(p>=96) clearInterval(iv); }, 130*2);
+}
+
+function finishRun(targets, stepResultsByScenario, lines){
+  let scIdx=0;
+  targets.forEach(suite=>{
+    const n = suite.scenarios.length;
+    const runEvidence = stepResultsByScenario.slice(scIdx, scIdx+n);
+    scIdx += n;
+    let passed=0, failed=0;
+    suite.scenarios.forEach((sc,i)=>{
+      const res = runEvidence[i];
+      sc.lastResult = res.result;
+      res.result==='failed' ? failed++ : passed++;
+    });
+    suite.passed=passed; suite.failed=failed; suite.total=n;
+    suite.status = failed>0 ? 'failed' : 'passed';
+    suite.lastRun = 'just now';
+    HISTORY.unshift({
+      id:'run-'+(historySeq++), project:state.project, suiteId:suite.id, suiteName:suite.name, kind:suite.kind,
+      date:'just now', passed, failed, total:n,
+      duration:(8+Math.floor(Math.random()*40))+'s', triggeredBy:'Mahesh',
+      steps: runEvidence,
+    });
+  });
+  const totalFail = targets.reduce((s,t)=>s+t.failed,0);
+  state.runner.running = false;
+  state.runner.lastRunLog = {lines, failed: totalFail};
+  state.runner.selected.clear();
+  render();
+  showToast((totalFail>0?ic('warn'):ic('check'))+` Run complete — ${targets.length} suite${targets.length===1?'':'s'} executed`);
+}
+
+function renderGeneratedGherkin(){
+  const g = state.writer.generated;
+  const w = state.writer;
+  const gherkinText = `<span class="gh-feature">Feature: ${g.feature}</span>\n` + g.scenarios.map(sc=>
+    `\n<span class="gh-scenario">Scenario: ${sc.name}</span>\n` +
+    sc.steps.map(st=>`  <span class="gh-kw${st.kw==='And'?' and':''}">${st.kw}</span> <span class="gh-step">${st.text}</span>`).join('\n')
+  ).join('\n');
+
+  return `
+  <div style="margin-top:18px;">
+    <div class="section-title" style="font-size:14px;font-weight:700;margin-bottom:2px;">Generated Gherkin scenarios</div>
+    <div class="section-note" style="font-size:12px;color:var(--muted);margin-bottom:12px;">Review the scenarios below, then save them as a test suite under a project.</div>
+    <div class="gherkin-box">${gherkinText}</div>
+    <div class="writer-grid" style="margin-top:16px; align-items:flex-end;">
+      <div class="field" style="margin-bottom:0;">
+        <label>Save to project</label>
+        <select onchange="setSaveTarget(this.value)">
+          ${Object.keys(PROJECTS).map(p=>`<option value="${p}" ${!w.saveAsNew && state.project===p?'selected':''}>${p}</option>`).join('')}
+          <option value="__new__" ${w.saveAsNew?'selected':''}>+ New project…</option>
+        </select>
+      </div>
+      ${w.saveAsNew ? `
+      <div class="field" style="margin-bottom:0;">
+        <label>New project name</label>
+        <input type="text" placeholder="e.g. Payments Service" value="${w.newName}" oninput="state.writer.newName=this.value"/>
+      </div>` : `
+      <div class="field" style="margin-bottom:0;">
+        <label>Suite name</label>
+        <input type="text" id="suite-name-input" value="${g.feature}"/>
+      </div>`}
+      <button class="btn primary" onclick="saveGenerated()">${ic('check')} Save Test Cases</button>
+    </div>
+  </div>`;
+}
+function setSaveTarget(v){
+  if (v==='__new__'){ state.writer.saveAsNew=true; } else { state.writer.saveAsNew=false; state.project=v; }
+  render();
+}
+function saveGenerated(){
+  const w = state.writer;
+  const g = w.generated;
+  let targetProject = state.project;
+  if (w.saveAsNew){
+    const name = (w.newName||'').trim();
+    if (!name){ showToast(ic('warn')+' Enter a project name'); return; }
+    if (!PROJECTS[name]) PROJECTS[name] = { url:w.url, suites:[] };
+    targetProject = name;
+  }
+  const nameInput = document.getElementById('suite-name-input');
+  const suiteName = (nameInput ? nameInput.value : g.feature).trim() || g.feature;
+  const suite = {
+    id:'suite-'+suiteName.toLowerCase().replace(/[^a-z0-9]+/g,'-')+'-'+Math.floor(Math.random()*1000),
+    name: suiteName, kind:g.kind, url:w.url,
+    scenarios: g.scenarios.map(sc=>({...sc, lastResult:null})),
+    passed:0, failed:0, total:g.scenarios.length, status:'unknown', lastRun:null,
+  };
+  PROJECTS[targetProject].suites.push(suite);
+  state.project = targetProject;
+  state.writer = { url:w.url, prompt:'', stage:'idle', generated:null, saveAsNew:false, newName:'' };
+  state.topTab = 'runner';
+  render();
+  showToast(ic('check')+` "${suiteName}" saved to ${targetProject}`);
+}
+
+/* ================= Init ================= */
+function render(){
+  document.getElementById('root').innerHTML = renderShell();
+}
+document.addEventListener('keydown', e=>{
+  if (e.key==='Escape' && document.getElementById('drawer').classList.contains('show')) closeDrawer();
+});
+render();
+</script>
+</body>
+</html>
