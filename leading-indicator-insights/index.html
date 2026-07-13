@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Leading Indicator Insights — AI Observability</title>
+<title>Leading Indicator Insights — Operations Observability</title>
 <style>
 :root{
   --plane:#f9f9f7; --surface:#fcfcfb; --surface-2:#f2f1ec;
@@ -299,6 +299,7 @@ button:focus-visible, [tabindex]:focus-visible, input:focus-visible, select:focu
 }
 .toast.show{opacity:1; transform:translateX(-50%) translateY(0);}
 .toast svg{width:15px; height:15px; color:var(--good);}
+</style>
 </style>
 </head>
 <body>
@@ -603,7 +604,7 @@ function renderHeader(){
   return `
   <div class="topbar">
     <div class="title-block">
-      <div class="eyebrow">AI Observability</div>
+      <div class="eyebrow">Operations Observability</div>
       <div class="title-row">${ic('trend')}<h1>Leading Indicator Insights</h1></div>
       ${inDetailed ? `
       <div class="breadcrumb">
@@ -1028,15 +1029,105 @@ function runResultsStage(kase, gen){
     <button class="btn primary" onclick="createIncident('${kase.title}')">${ic('check')} Create Incident</button>`;
 }
 
+/* Generic (data-driven) case: works for any product by scanning every component/
+   subtab/metric combination and reasoning about whichever is actually elevated,
+   rather than a canned message. PRD-1042 / PRD-2071 keep their hand-authored
+   flagship narratives above; every other product routes through here. */
+const STATUS_RANK = {good:0, warning:1, serious:2, critical:3};
+function metricDisplay(m){ return m.unit==='%' ? m.value+'%' : m.value+(m.unit?(' '+m.unit):''); }
+function scanAllMetrics(product){
+  const out = [];
+  CAT_ORDER.forEach(compKey=>{
+    const def = COMPONENTS[compKey];
+    def.subtabs.forEach(subtab=>{
+      def.metrics.forEach(mdef=>{
+        out.push({compKey, subtab, metric:getMetric(product, compKey, subtab, mdef)});
+      });
+    });
+  });
+  return out;
+}
+const GENERIC_ACTIONS = {
+  compute: (sub,m)=>[
+    `Investigate resource utilization on <b>${sub}</b> — consider scaling out or right-sizing the tier`,
+    `Correlate ${m.name.toLowerCase()} against recent deploys or scheduled batch jobs on ${sub}`,
+    `Lower the alert threshold for ${m.name} on ${sub} so this is caught earlier next time`,
+  ],
+  network: (sub,m)=>[
+    `Inspect load balancer health checks and upstream latency on <b>${sub}</b>`,
+    `Check for a recent config or certificate change affecting ${sub}`,
+    `Review the ${m.name.toLowerCase()} alert threshold for ${sub}`,
+  ],
+  database: (sub,m)=>[
+    `Review slow query logs and connection pool sizing on <b>${sub}</b>`,
+    `Check for lock contention or a missing index driving ${m.name.toLowerCase()} on ${sub}`,
+    `Consider read-replica offload if the load on ${sub} is read-heavy`,
+  ],
+  middleware: (sub,m)=>[
+    `Check consumer throughput and dead-letter queue growth on <b>${sub}</b>`,
+    `Verify downstream service health — a slow consumer often shows up first as ${m.name.toLowerCase()} on ${sub}`,
+    `Add backpressure or autoscale the consumer group for ${sub}`,
+  ],
+  kubernetes: (sub,m)=>[
+    `Check pod restart and OOM events on <b>${sub}</b>, and adjust resource limits if needed`,
+    `Review the most recent deployment to ${sub} for a possible regression`,
+    `Set a PodDisruptionBudget alert tied to ${m.name.toLowerCase()} on ${sub}`,
+  ],
+};
+
 function genericCase(product){
-  return {
-    title: product.name,
-    scan: CAT_ORDER.map(c=>({comp:c, label:COMPONENTS[c].label, detail:'nominal, within expected range', flag:false})),
-    confidence: 62,
-    rootCause: `No dominant anomaly signature found across ${product.name}'s components — metrics are within normal variance. Continuing passive monitoring.`,
-    evidence: [{time:nowStr().slice(0,5), text:'All components report nominal status'}],
-    actions: ['No action required — continue standard monitoring cadence'],
-  };
+  const all = scanAllMetrics(product);
+  const byComp = {};
+  CAT_ORDER.forEach(c=>{ byComp[c] = null; });
+  all.forEach(r=>{
+    const cur = byComp[r.compKey];
+    if (!cur || STATUS_RANK[r.metric.status] > STATUS_RANK[cur.metric.status]) byComp[r.compKey] = r;
+  });
+  const scan = CAT_ORDER.map(c=>{
+    const best = byComp[c];
+    const flag = best.metric.status !== 'good';
+    return {
+      comp:c, label:COMPONENTS[c].label,
+      detail: `${best.metric.name} at ${metricDisplay(best.metric)} on ${best.subtab}${flag?` — ${best.metric.status}`:', nominal'}`,
+      flag,
+    };
+  });
+
+  const flagged = all.filter(r=>r.metric.status!=='good')
+    .sort((a,b)=> STATUS_RANK[b.metric.status]-STATUS_RANK[a.metric.status] || b.metric.value-a.metric.value);
+
+  if (flagged.length===0){
+    return {
+      title: product.name,
+      scan,
+      confidence: 60,
+      rootCause: `No dominant anomaly signature found across ${product.name}'s components — every metric scanned is within its normal operating range.`,
+      evidence: [{time:nowStr().slice(0,5), text:'All components report nominal status'}],
+      actions: ['No action required — continue standard monitoring cadence'],
+    };
+  }
+
+  const worst = flagged[0];
+  const worstLabel = COMPONENTS[worst.compKey].label;
+  const others = flagged.slice(1,4);
+  const confidence = worst.metric.status==='critical'?93:worst.metric.status==='serious'?83:72;
+
+  const rootCause = `The strongest signal for <b>${product.name}</b> is <b>${worst.metric.name}</b> at <b>${metricDisplay(worst.metric)}</b> on the ${worst.subtab} tier within <b>${worstLabel}</b> — a ${worst.metric.status} reading, above its normal operating range.` +
+    (others.length
+      ? ` This coincides with ${flagged.length-1} other elevated metric${flagged.length-1===1?'':'s'} (${others.map(o=>`${o.metric.name} on ${COMPONENTS[o.compKey].label}`).join(', ')}), consistent with load or resource pressure propagating across tiers.`
+      : ` No other components show a correlated signal, which suggests an isolated condition rather than a cascading failure.`);
+
+  const timeLabels = ['-18m','-12m','-6m','Now'];
+  const evidencePool = [worst, ...others];
+  const evidence = evidencePool.map((f,i)=>({
+    time: timeLabels[Math.min(i, timeLabels.length-1)],
+    text: `<b>${f.metric.name}</b> on ${COMPONENTS[f.compKey].label} / ${f.subtab} at ${metricDisplay(f.metric)} (${f.metric.status})`,
+  }));
+
+  const actionFn = GENERIC_ACTIONS[worst.compKey] || GENERIC_ACTIONS.compute;
+  const actions = actionFn(worst.subtab, worst.metric);
+
+  return { title: product.name, scan, confidence, rootCause, evidence, actions };
 }
 
 let toastTimer=null;
