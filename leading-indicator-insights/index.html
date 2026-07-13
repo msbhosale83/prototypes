@@ -244,6 +244,31 @@ button:focus-visible, [tabindex]:focus-visible, input:focus-visible, select:focu
 .modal-head{position:sticky; top:0; background:var(--surface); z-index:1; display:flex; align-items:flex-start; justify-content:space-between; gap:12px; padding:20px 24px; border-bottom:1px solid var(--hair);}
 .modal-body{padding:20px 24px 26px;}
 
+.issue-section-head{display:flex; align-items:center; gap:8px; margin-bottom:12px;}
+.issue-section-head h4{font-size:13px; font-weight:700; display:flex; align-items:center; gap:7px;}
+.issue-section-head h4 svg{width:15px; height:15px;}
+.issue-section-head.red h4{color:var(--critical);}
+.issue-section-head.green h4{color:var(--good);}
+.issue-count{background:var(--critical-soft); color:var(--critical); font-size:11px; font-weight:700; padding:2px 9px; border-radius:99px;}
+.issue-list{display:flex; flex-direction:column; gap:8px;}
+.issue-row{display:flex; align-items:center; gap:11px; width:100%; text-align:left; border:1px solid var(--hair); border-left:3px solid var(--hair); border-radius:10px; padding:11px 13px; background:var(--surface-2); font-family:inherit;}
+.issue-row:hover{transform:translateY(-1px); box-shadow:var(--shadow);}
+.issue-row.s-critical{border-left-color:var(--critical);}
+.issue-row.s-serious{border-left-color:var(--serious);}
+.issue-row.s-warning{border-left-color:var(--warning);}
+.issue-row > svg:first-child{width:16px; height:16px; flex:none;}
+.issue-row.s-critical > svg:first-child{color:var(--critical);}
+.issue-row.s-serious > svg:first-child{color:var(--serious);}
+.issue-row.s-warning > svg:first-child{color:var(--warning-ink);}
+.issue-text{flex:1; font-size:13px; color:var(--ink); line-height:1.3;}
+.issue-meta{display:block; font-size:11px; color:var(--muted); margin-top:2px; font-weight:500;}
+.issue-more{font-size:11.5px; color:var(--muted); margin-top:10px; font-style:italic;}
+.issue-empty{display:flex; align-items:center; gap:8px; font-size:12.5px; color:var(--muted); padding:10px 0;}
+.issue-empty svg{width:15px; height:15px; color:var(--good); flex:none;}
+.healthy-grid{display:flex; flex-wrap:wrap; gap:8px;}
+.healthy-chip{display:flex; align-items:center; gap:6px; font-size:12px; font-weight:600; color:var(--good); background:var(--good-soft); padding:7px 13px; border-radius:99px;}
+.healthy-chip svg{width:13px; height:13px; flex:none;}
+
 /* ---------- AI Drawer ---------- */
 .overlay{position:fixed; inset:0; background:rgba(11,11,11,.42); z-index:40; opacity:0; pointer-events:none; transition:opacity .2s;}
 .overlay.show{opacity:1; pointer-events:auto;}
@@ -884,10 +909,71 @@ function renderModal(){
         </div>
       </div>
       <div class="modal-body">
-        ${renderComponentExplorer(product, 'modal')}
+        ${renderIssueSummary(product)}
       </div>
     </div>
   </div>`;
+}
+
+/* Quick-glance red/green triage for the "View Details" popup — what's breaching
+   (named down to the specific server/pod) vs. what's fully healthy, instead of
+   the full per-component tabular breakdown (that still lives in Detailed Metrics). */
+function topOffender(product, compKey, subtab, metric){
+  const {rows} = resourceRows(product, compKey, subtab, metric);
+  return rows.length ? rows[0].name : subtab;
+}
+
+function renderIssueSummary(product){
+  const all = scanAllMetrics(product);
+  const flagged = all.filter(r=>r.metric.status!=='good')
+    .sort((a,b)=> STATUS_RANK[b.metric.status]-STATUS_RANK[a.metric.status] || b.metric.value-a.metric.value);
+
+  const flaggedComps = new Set(flagged.map(f=>f.compKey));
+  const healthyComps = CAT_ORDER.filter(c=>!flaggedComps.has(c));
+
+  const CAP = 8;
+  const shown = flagged.slice(0, CAP);
+  const overflow = flagged.length - shown.length;
+
+  return `
+  <div class="issue-section-head red">
+    <h4>${ic('warn')} Needs Attention ${flagged.length?`<span class="issue-count">${flagged.length}</span>`:''}</h4>
+  </div>
+  ${shown.length===0 ? `<div class="issue-empty">${ic('check')} No breaching metrics found across any component right now.</div>` : `
+  <div class="issue-list">
+    ${shown.map(f=>{
+      const resource = topOffender(product, f.compKey, f.subtab, f.metric);
+      return `
+      <button class="issue-row s-${f.metric.status}" onclick="jumpToComponent('${product.id}','${f.compKey}','${f.subtab.replace(/'/g,"\\'")}')">
+        ${statusPillIcon(f.metric.status)}
+        <span class="issue-text">
+          <b>${resource}</b> — ${f.metric.name} at ${metricDisplay(f.metric)}
+          <span class="issue-meta">${COMPONENTS[f.compKey].label} · ${f.subtab} · ${f.metric.status}</span>
+        </span>
+        <span class="expand-chevron" style="transform:none;">${ic('chevron')}</span>
+      </button>`;
+    }).join('')}
+  </div>
+  ${overflow>0?`<div class="issue-more">+${overflow} more issue${overflow===1?'':'s'} — open Detailed Metrics for the full breakdown</div>`:''}
+  `}
+  <div class="issue-section-head green" style="margin-top:20px;">
+    <h4>${ic('check')} Healthy</h4>
+  </div>
+  ${healthyComps.length===0 ? `<div class="issue-empty">No fully healthy components right now — see Needs Attention above.</div>` : `
+  <div class="healthy-grid">
+    ${healthyComps.map(c=>`<div class="healthy-chip">${ic('check')} ${COMPONENTS[c].label}</div>`).join('')}
+  </div>`}
+  `;
+}
+
+function jumpToComponent(productId, compKey, subtab){
+  state.modal.open = false;
+  state.view = 'detailed';
+  state.productId = productId;
+  state.category = compKey;
+  state.subtab = subtab;
+  state.openMetric = null;
+  render();
 }
 
 function metricCard(m, product, compKey, subtab, scope){
